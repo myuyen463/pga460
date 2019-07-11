@@ -1,4 +1,4 @@
-/*------------------------------------------------- GetDistance -----
+         /*------------------------------------------------- GetDistance -----
   PROJECT:     PGA460 UART, TCI, OWU, & SPI Ultrasonic Time-of-Flight
   DESCRIPTION: Transmits and receives ultrasonic echo data to measure
               time-of-flight distance, width, and/or amplitude.

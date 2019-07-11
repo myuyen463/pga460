@@ -1,6 +1,6 @@
 /*
 	PGA460_USSC.h
-	
+
 	BSD 2-clause "Simplified" License
 	Copyright (c) 2017, Texas Instruments
 	All rights reserved.
@@ -28,18 +28,19 @@
 	The views and conclusions contained in the software and documentation are those
 	of the authors and should not be interpreted as representing official policies,
 	either expressed or implied, of the FreeBSD Project.
-	
+
 	Last Updated: Nov 2017
 	By: A. Whitehead <make@energia.nu>
 */
- 
+
 #include <Arduino.h>
+//#include <SoftwareSerial.h>
 #include <string.h>
- 
+
 class pga460
 {
-  public:
-	pga460();
+public:
+	pga460(HardwareSerial* serial);
 	byte pullEchoDataDump(byte element);
 	byte registerRead(byte addr);
 	byte registerWrite(byte addr, byte data);
@@ -61,7 +62,7 @@ class pga460
 	double runDiagnostics(byte run, byte diag);
 	double triangulation(double a, double b, double c);
 
-  private:
+private:
 	byte calcChecksum(byte cmd);
 	void pga460SerialFlush();
 	void tciRecord(byte numObj);

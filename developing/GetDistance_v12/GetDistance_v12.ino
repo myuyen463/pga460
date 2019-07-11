@@ -49,7 +49,7 @@ byte burn = 0;                // trigger EE_CNTRL to burn and program user EEPRO
 byte cdMultiplier = 1;        // multiplier for command cycle delay
 byte numOfObj = 1;            // number of object to detect set to 1-8
 byte uartAddrUpdate = 0;      // PGA460 UART address to interface to; default is 0, possible address 0-7
-bool objectDetected = false;  // object detected flag to break burst+listen cycle when true
+//bool objectDetected = false;  // object detected flag to break burst+listen cycle when true
 bool demoMode = false;        // only true when running UART/OWU multi device demo mode
 bool alwaysLong = false;      // always run preset 2, regardless of preset 1 result (hard-coded only)
 double minDistLim = 0;      // minimum distance as limited by ringing decay of single transducer and threshold masking
@@ -70,6 +70,9 @@ boolean stringComplete = false; // whether the string is complete
 
 // PGA460_USSC library class
 pga460 ussc(&Serial1);
+//pga460 ussc1(&Serial2);
+
+pga460 usscArr[3] = {ussc, ussc1, ussc2];
 
 
 /*------------------------------------------------- setup -----
@@ -79,11 +82,12 @@ pga460 ussc(&Serial1);
   -------------------------------------------------------------------*/
 void setup() {                // put your setup code here, to run once
   initPGA460(ussc);
+  //initPGA460(ussc1);
   delay(1000);
   Serial.print("REC_LENGTH: ");
-  ussc.registerRead(0x22);
+  ussc.registerRead(0x22); //Serial.print(" "); ussc1.registerRead(0x22);
   Serial.print("THR_CRC_ERR: ");
-  ussc.registerRead(0x4C);
+  ussc.registerRead(0x4C); //Serial.print(" "); ussc1.registerRead(0x22);
   timer = millis();
 }
 
@@ -259,7 +263,10 @@ void initPGA460(pga460 ussc) {
     -------------------------------------------------------------------*/
   // -+-+-+-+-+-+-+-+-+-+- 1 : interface setup   -+-+-+-+-+-+-+-+-+-+- //
   ussc.initBoostXLPGA460(commMode, baudRate, uartAddrUpdate);
+  /*for(uint8_t i = 0; i < sizeof(usscArr); i++){
+   
 
+  */
   // -+-+-+-+-+-+-+-+-+-+- 2 : bulk threshold write   -+-+-+-+-+-+-+-+-+-+- //
   if (fixedThr != 72) {
     ussc.initThresholds(fixedThr);
@@ -345,8 +352,12 @@ void initPGA460(pga460 ussc) {
   -------------------------------------------------------------------*/
 
 void loop() {                 // put your main code here, to run repeatedly
-  // -+-+-+-+-+-+-+-+-+-+-  PRESET 1 (SHORT RANGE) MEASUREMENT   -+-+-+-+-+-+-+-+-+-+- //
-  objectDetected = false;                       // Initialize object detected flag to false
+ getDistance(ussc);
+}
+
+void getDistance(pga460 ussc){
+    // -+-+-+-+-+-+-+-+-+-+-  PRESET 1 (SHORT RANGE) MEASUREMENT   -+-+-+-+-+-+-+-+-+-+- //
+  bool objectDetected = false;                       // Initialize object detected flag to false
   ussc.ultrasonicCmd(0, numOfObj);              // run preset 1 (short distance) burst+listen for 1 object
   ussc.pullUltrasonicMeasResult(demoMode);      // Pull Ultrasonic Measurement Result
   counter++;
@@ -418,7 +429,6 @@ void loop() {                 // put your main code here, to run repeatedly
     }
   }
 }
-
 // -+-+-+-+-+-+-+-+-+-+-  SERIAL MONITORING   -+-+-+-+-+-+-+-+-+-+- //
 /*
   SerialEvent occurs whenever a new data comes in the hardware serial RX. This
