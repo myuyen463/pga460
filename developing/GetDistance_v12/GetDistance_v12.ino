@@ -1,4 +1,4 @@
-         /*------------------------------------------------- GetDistance -----
+/*------------------------------------------------- GetDistance -----
   PROJECT:     PGA460 UART, TCI, OWU, & SPI Ultrasonic Time-of-Flight
   DESCRIPTION: Transmits and receives ultrasonic echo data to measure
               time-of-flight distance, width, and/or amplitude.
@@ -9,6 +9,7 @@
   NOTES:       This example code is in the public domain.
   -------------------------------------------------------------------*/
 #include <PGA460_USSC.h>
+
 
 /*------------------------------------------------- run mode -----
   |  userInputMode
@@ -42,13 +43,13 @@ byte fixedThr = 4;            // set P1 and P2 thresholds to 0=%25, 1=50%, or 2=
 byte xdcr = 0;                // set PGA460 to recommended settings for 0=Murata MA58MF14-7N, 1=Murata MA40H1S-R
 byte agrTVG = 1;              // set TVG's analog front end gain range to 0=32-64dB, 1=46-78dB, 2=52-84dB, or 3=58-90dB
 byte fixedTVG = 1;            // set fixed TVG level at 0=%25, 1=50%, or 1=75% of max
-byte runDiag = 1;             // run system diagnostics and temp/noise level before looping burst+listen command
+byte runDiag =1;             // run system diagnostics and temp/noise level before looping burst+listen command
 byte edd = 1;                 // echo data dump of preset 1, 2, or neither
-byte burn = 1;                // trigger EE_CNTRL to burn and program user EEPROM memory
+byte burn = 0;                // trigger EE_CNTRL to burn and program user EEPROM memory
 byte cdMultiplier = 1;        // multiplier for command cycle delay
 byte numOfObj = 1;            // number of object to detect set to 1-8
 byte uartAddrUpdate = 0;      // PGA460 UART address to interface to; default is 0, possible address 0-7
-bool objectDetected = false;  // object detected flag to break burst+listen cycle when true
+//bool objectDetected = false;  // object detected flag to break burst+listen cycle when true
 bool demoMode = false;        // only true when running UART/OWU multi device demo mode
 bool alwaysLong = false;      // always run preset 2, regardless of preset 1 result (hard-coded only)
 double minDistLim = 0;      // minimum distance as limited by ringing decay of single transducer and threshold masking
@@ -68,7 +69,11 @@ String interruptString = "";  // a string to hold incoming data
 boolean stringComplete = false; // whether the string is complete
 
 // PGA460_USSC library class
-pga460 ussc;
+pga460 ussc(&Serial2);
+//pga460 ussc1(&Serial2);
+
+//pga460 usscArr[3] = {ussc, ussc1, ussc2];
+
 
 /*------------------------------------------------- setup -----
   |  function Setup
@@ -76,12 +81,13 @@ pga460 ussc;
   |  Purpose: (see funciton initPGA460 for details)
   -------------------------------------------------------------------*/
 void setup() {                // put your setup code here, to run once
-  initPGA460();
+  initPGA460(ussc);
+  //initPGA460(ussc1);
   delay(1000);
   Serial.print("REC_LENGTH: ");
-  ussc.registerRead(0x22);
+  ussc.registerRead(0x22); //Serial.print(" "); ussc1.registerRead(0x22);
   Serial.print("THR_CRC_ERR: ");
-  ussc.registerRead(0x4C);
+  ussc.registerRead(0x4C); //Serial.print(" "); ussc1.registerRead(0x22);
   timer = millis();
 }
 
@@ -107,7 +113,7 @@ void setup() {                // put your setup code here, to run once
   |   variables in the globals section for the device to
   |   auto-configure in the background.
   -------------------------------------------------------------------*/
-void initPGA460() {
+void initPGA460(pga460 ussc) {
 
 #ifdef userInputMode
   int inByte = 0;         // incoming serial byte
@@ -227,7 +233,7 @@ void initPGA460() {
     }
     else if (inByte == 113 - 48) //  'q'
     {
-      initPGA460(); // restart initializaiton routine
+      initPGA460(ussc); // restart initializaiton routine
     }
     else //   's'
     {
@@ -257,7 +263,10 @@ void initPGA460() {
     -------------------------------------------------------------------*/
   // -+-+-+-+-+-+-+-+-+-+- 1 : interface setup   -+-+-+-+-+-+-+-+-+-+- //
   ussc.initBoostXLPGA460(commMode, baudRate, uartAddrUpdate);
+  /*for(uint8_t i = 0; i < sizeof(usscArr); i++){
+   
 
+  */
   // -+-+-+-+-+-+-+-+-+-+- 2 : bulk threshold write   -+-+-+-+-+-+-+-+-+-+- //
   if (fixedThr != 72) {
     ussc.initThresholds(fixedThr);
@@ -309,7 +318,7 @@ void initPGA460() {
     Serial.println("");
   }
   // -+-+-+-+-+-+-+-+-+-+-  others   -+-+-+-+-+-+-+-+-+-+- //
-  commandDelay = 50; //10 * cdMultiplier;                   // command cycle delay result in ms
+  commandDelay = 5; //10 * cdMultiplier;                   // command cycle delay result in ms
   if (numOfObj == 0 || numOfObj > 8) {
     numOfObj = 1;  // sets number of objects to detect to 1 if invalid input
   }
@@ -343,8 +352,12 @@ void initPGA460() {
   -------------------------------------------------------------------*/
 
 void loop() {                 // put your main code here, to run repeatedly
-  // -+-+-+-+-+-+-+-+-+-+-  PRESET 1 (SHORT RANGE) MEASUREMENT   -+-+-+-+-+-+-+-+-+-+- //
-  objectDetected = false;                       // Initialize object detected flag to false
+ getDistance(ussc);
+}
+
+void getDistance(pga460 ussc){
+    // -+-+-+-+-+-+-+-+-+-+-  PRESET 1 (SHORT RANGE) MEASUREMENT   -+-+-+-+-+-+-+-+-+-+- //
+  bool objectDetected = false;                       // Initialize object detected flag to false
   ussc.ultrasonicCmd(0, numOfObj);              // run preset 1 (short distance) burst+listen for 1 object
   ussc.pullUltrasonicMeasResult(demoMode);      // Pull Ultrasonic Measurement Result
   counter++;
@@ -416,7 +429,6 @@ void loop() {                 // put your main code here, to run repeatedly
     }
   }
 }
-
 // -+-+-+-+-+-+-+-+-+-+-  SERIAL MONITORING   -+-+-+-+-+-+-+-+-+-+- //
 /*
   SerialEvent occurs whenever a new data comes in the hardware serial RX. This
@@ -430,7 +442,7 @@ void serialEvent() {
     // if the incoming character is a 'q', set a flag, stop the main loop, and re-run initialization
     if (inChar == 'q') {
       stringComplete = true;
-      initPGA460();
+      initPGA460(ussc);
     }
 
     // if the incoming character is a 'p', set a flag, pause the loop, and resume loop upon receiving another 'p' character
@@ -450,7 +462,7 @@ void serialEvent() {
           if (inChar == 'q')
           {
             stringComplete = true;
-            initPGA460();
+            initPGA460(ussc);
           }
           delay(1000);
         }

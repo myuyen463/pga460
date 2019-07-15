@@ -422,7 +422,7 @@ double printSensorMeas(byte umr)
       }*/
     default: Serial.println("ERROR - Invalid object result!"); break;
   }
-  Serial.print("calc: ");Serial.print(objReturn);Serial.print(" ");
+  
   return objReturn;
 }
 
