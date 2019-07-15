@@ -69,10 +69,10 @@ String interruptString = "";  // a string to hold incoming data
 boolean stringComplete = false; // whether the string is complete
 
 // PGA460_USSC library class
-pga460 ussc(&Serial1);
+pga460 ussc(&Serial2);
 //pga460 ussc1(&Serial2);
 
-pga460 usscArr[3] = {ussc, ussc1, ussc2];
+//pga460 usscArr[3] = {ussc, ussc1, ussc2];
 
 
 /*------------------------------------------------- setup -----
@@ -423,7 +423,7 @@ void getDistance(pga460 ussc){
         /*if (i == numOfObj - 1 && objectDetected == false)
         {*/
 
-          Serial.println("No object...");
+          Serial.println("0...");
         //}
       }
     }

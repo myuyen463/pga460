@@ -60,15 +60,9 @@ public:
 	bool pullUltrasonicMeasResult(bool busDemo);
 	double printUltrasonicMeasResult(byte umr);
 	double runDiagnostics(byte run, byte diag);
-	double triangulation(double a, double b, double c);
 
 private:
 	byte calcChecksum(byte cmd);
 	void pga460SerialFlush();
-	void tciRecord(byte numObj);
-	void tciByteToggle(byte data, byte zeroPadding);
-	void tciIndexRW(byte index, bool write);
-	void tciCommand(byte cmd);
-	//void spiTransfer(byte* mosi, byte size);
-	//void spiMosiIdle(byte size);
 };
+
