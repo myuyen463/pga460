@@ -360,12 +360,6 @@ void getDistance(pga460 ussc) {
   // -+-+-+-+-+-+-+-+-+-+-  PRESET 1 (SHORT RANGE) MEASUREMENT   -+-+-+-+-+-+-+-+-+-+- //
   bool objectDetected = false;                       // Initialize object detected flag to false
   ussc.ultrasonicCmd(0, numOfObj);              // run preset 1 (short distance) burst+listen for 1 object
-
-  Serial.flush();
-  Serial.print("UART_DIAG: ");
-  ussc.registerRead(0x1E);
-  Serial.flush();
-  delay(1);
   ussc.pullUltrasonicMeasResult(demoMode);      // Pull Ultrasonic Measurement Result
   //counter++;
   /*if(millis() - timer > 1000){

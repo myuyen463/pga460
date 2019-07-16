@@ -44,23 +44,7 @@
  *-------------------------------------------------------------------*/
 #pragma region globals
  // Pin mapping of BOOSTXL-PGA460 to LaunchPad by pin name
-#define DECPL_A 2
-#define RXD_LP 3
-#define TXD_LP 4
-#define DECPL_D 5
-#define TEST_A 6
-#define TCI_CLK 7
-#define TEST_D 8
-#define MEM_SOMI 9
-#define MEM_SIMO 10
-#define TCI_RX 14
-#define TCI_TX 15
-#define COM_SEL 17
-#define COM_PD 18
-//#define SPI_CS 33
-#define SCLK_CLK 34
-#define MEM_HOLD 36
-#define MEM_CS 37
+
 
 
 // Serial read timeout in milliseconds
@@ -195,12 +179,7 @@ byte uartAddr = 0; 			// PGA460 UART device address (0-7). '0' is factory defaul
 byte numObj = 1; 			// number of objects to detect
 //OWU exclusive variables
 signed int owuShift = 0;	// accoutns for OWU receiver buffer offset for capturing master transmitted data - always 0 for standard two-wire UART
-//TCI exclusive variables
-byte bufRecv[128]; 				// TCI receive data buffer for all commands	
-unsigned long tciToggle;		// used to log TCI burst+listen time of object
-unsigned int objTime[8];		// array to capture up to eight object TCI burst+listen toggles
-//SPI exclusive variables
-	//byte misoBuf[131]; 				// SPI MISO receive data buffer for all commands	
+		// SPI MISO receive data buffer for all commands	
 #pragma endregion globals
 
 /*------------------------------------------------- PGA460 Top Level -----
@@ -906,11 +885,7 @@ void pga460::ultrasonicCmd(byte cmd, byte numObjUpdate)
 	numObj = numObjUpdate; // number of objects to detect
 	byte bufCmd[4] = { syncByte, 0xFF, numObj, 0xFF }; // prepare bufCmd with 0xFF placeholders
 
-	//if (comm != 1)
-	//{
-		memset(objTime, 0xFF, 8); // reset and idle-high TCI object buffer
-	//}
-
+	
 	switch (cmd)
 	{
 		// SINGLE ADDRESS		
@@ -1036,12 +1011,7 @@ bool pga460::pullUltrasonicMeasResult(bool busDemo)
 					ultraMeasResult[n] = Serial1.read();
 					//delay(1);
 				}
-				for (int n = 0; n < ((2 + (numObj * 4)) + owuShift); n++)
-				{
-
-					Serial.print(ultraMeasResult[n]);
-					Serial.print(" ");
-				}
+			
 			}
 		
 		return true;
@@ -1251,17 +1221,15 @@ double pga460::printUltrasonicMeasResult(byte umr)
  *-------------------------------------------------------------------*/
 void pga460::runEchoDataDump(byte preset)
 {
-	if (comm != 1) // USART or OWU mode
-	{
+	
 		// enable Echo Data Dump bit
 		regAddr = 0x40;
 		regData = 0x80;
 		byte buf10[5] = { syncByte, SRW, regAddr, regData, calcChecksum(SRW) };
-		if (comm == 0 || comm == 2) // UART or OWU mode
-		{
+		
 			pga460SerialFlush();
 			Serial1.write(buf10, sizeof(buf10));
-		}
+		
 
 		delay(10);
 
@@ -1272,29 +1240,11 @@ void pga460::runEchoDataDump(byte preset)
 		regData = 0x00;
 		buf10[3] = regData;
 		buf10[4] = calcChecksum(SRW);
-		if (comm == 0 || comm == 2) // UART or OWU mode
-		{
+		
 			Serial1.write(buf10, sizeof(buf10));
-		}
+		
 
-	}
-	else if (comm == 1) // TCI mode
-	{
-		EE_CNTRL = 0x80; 		// enable echo data dump 
-		tciIndexRW(11, true); 	// write to index 11
-
-		delay(10);
-		tciCommand(preset); 	// run burst+listen command
-		delay(100);				// delay for maximum record time length with margin
-
-		EE_CNTRL = 0x00; 		// disable echo data dump
-		tciIndexRW(11, true); 	// write to index 11		
-		delay(10);
-	}
-	else
-	{
-		//do nothing
-	}
+	
 	return;
 }
 
@@ -1356,17 +1306,7 @@ byte pga460::pullEchoDataDump(byte element)
 		}
 		return echoDataDump[element];
 	}
-	else if (comm == 1) // TCI
-	{
-		if (element == 0)
-		{
-			tciIndexRW(12, false); //only run when first calling this function to read out the entire EDD to the receive buffer
-			delay(500); // wait until EDD read out is completed with margin
-		}
-		delay(10);
-		return bufRecv[element];
-	}
-
+	
 	else
 	{
 		//do nothing
@@ -1529,37 +1469,7 @@ double pga460::runDiagnostics(byte run, byte diag)
 		}
 
 	}
-	else if (comm == 1) //TCI
-	{
-		if (run == true)
-		{
-			delay(10);
-			tciCommand(6); // run noise level measurement command			
-			delay(15);
-			tciCommand(1); //run preset 2 burst+listen command
-			delay(100);	// maximum record length is 65ms, so wait with margin
-
-
-			tciIndexRW(1, false); //read index1	
-			delay(10);
-
-			for (int n = 1; n < 4; n++)
-			{
-				diagMeasResult[n] = bufRecv[n - 1];
-			}
-			tempNoiseMeasResult[2] = diagMeasResult[3]; //clone temperature result to element 2			
-
-			delay(10);
-			tciCommand(5); // run temperature measurement command
-			delay(10);
-
-			tciIndexRW(0, false); //read index0
-			delay(10);
-
-			tempNoiseMeasResult[1] = bufRecv[0]; //store temp readout to element 1
-		}
-		elementOffset = 0; // no offset required fot TCI
-	}
+	
 	else
 	{
 		//do nothing
@@ -1671,17 +1581,7 @@ bool pga460::burnEEPROM()
 		}
 
 	}
-	else if (comm == 1) // TCI mode
-	{
-		EE_CNTRL = 0x68;
-		tciIndexRW(11, true); 	// write to index 11 to EE_UNLCK to unlock EEPROM, and '0' to EEPRGM bit at EE_CNTRL register
-		delay(1); 				// immediately send the same UART or TCI command with the EEPRGM bit set to '1'.
-		EE_CNTRL = 0x69;
-		tciIndexRW(11, true); 	// write to index 11 to EE_UNLCK to unlock EEPROM, and '1' to EEPRGM bit at EE_CNTRL register
-		delay(1000);
-		tciIndexRW(11, false);	// read back index 11 to review EE_PGRM_OK bit	
-		burnStat = bufRecv[0];
-	}
+	
 	else
 	{
 		//do nothing
@@ -1949,432 +1849,6 @@ byte pga460::calcChecksum(byte cmd)
 	return carry;
 }
 
-/*------------------------------------------------- tciIndexRW -----
- |  Function tciIndexRW
- |
- |  Purpose:  Read or write the TCI index command.
- |		TODO: Enable all commands to be written. Update user EEPROM variables based on index read.
- |
- |  Parameters:
- |		index (IN) -- TCI index (0-15) to read or write.
- |		wTrue (IN) -- when true, issue a TCI write command. When false, issue a TCI read command.
- |
- |  Returns: none
- *-------------------------------------------------------------------*/
-void pga460::tciIndexRW(byte index, bool wTrue)
-{
-	int dataLength = 0;		// number of bits per TCI index
-	String zeroString = "";	// string of zeros to append to the end of the binary string for the checksum calculation
-	String dataString = "";	// entire index data string with appended zeros for checksum calculation
-	byte dataLoops = 0;		// based on the number elements to be passed into the checksum calaculation after appending zeros
-	byte bufTCI[46];		// transmit TCI buffer for all index commands
-	byte data = 0xFF;		// idle-high data transmit data
-	byte zeroPadding = 0;	// byte-number of zeros to append to the end of the binary string for the checksum calculation 
-	byte bitIgnore = 0;		// number of bits to ignore at the end of the concatenated bufTCI index string
-
-	if (wTrue == true) // TCI write command
-	{
-		bufTCI[0] = 0x1F & (0x10 + index); // set first byte with write bit and index
-		switch (index)
-		{
-		case 0: dataLength = 8; break; //read only
-		case 1: dataLength = 24; break; //read only
-		case 2: zeroPadding = 3; dataLength = 8; zeroString = "000";  bitIgnore = 0;
-			bufTCI[1] = FREQUENCY;
-			break;
-		case 3: zeroPadding = 1; dataLength = 18; zeroString = "0"; bitIgnore = 0;
-			//TODO
-			break;
-		case 4: zeroPadding = 3; dataLength = 8; zeroString = "000"; bitIgnore = 0;
-			//TODO
-			break;
-		case 5: zeroPadding = 3; dataLength = 124; zeroString = "000"; bitIgnore = 4;
-			bufTCI[1] = P1_THR_0;
-			bufTCI[2] = P1_THR_1;
-			bufTCI[3] = P1_THR_2;
-			bufTCI[4] = P1_THR_3;
-			bufTCI[5] = P1_THR_4;
-			bufTCI[6] = P1_THR_5;
-			bufTCI[7] = P1_THR_6;
-			bufTCI[8] = P1_THR_7;
-			bufTCI[9] = P1_THR_8;
-			bufTCI[10] = P1_THR_9;
-			bufTCI[11] = P1_THR_10;
-			bufTCI[12] = P1_THR_11;
-			bufTCI[13] = P1_THR_12;
-			bufTCI[14] = P1_THR_13;
-			bufTCI[15] = P1_THR_14;
-			bufTCI[16] = (P1_THR_15 & 0x0F) << 4; //TH_P1_OFF only
-			break;
-		case 6: zeroPadding = 3; dataLength = 124; zeroString = "000"; bitIgnore = 4;
-			bufTCI[1] = P2_THR_0;
-			bufTCI[2] = P2_THR_1;
-			bufTCI[3] = P2_THR_2;
-			bufTCI[4] = P2_THR_3;
-			bufTCI[5] = P2_THR_4;
-			bufTCI[6] = P2_THR_5;
-			bufTCI[7] = P2_THR_6;
-			bufTCI[8] = P2_THR_7;
-			bufTCI[9] = P2_THR_8;
-			bufTCI[10] = P2_THR_9;
-			bufTCI[11] = P2_THR_10;
-			bufTCI[12] = P2_THR_11;
-			bufTCI[13] = P2_THR_12;
-			bufTCI[14] = P2_THR_13;
-			bufTCI[15] = P2_THR_14;
-			bufTCI[16] = (P2_THR_15 & 0x0F) << 4; //TH_P2_OFF only
-			break;
-		case 7: zeroPadding = 1; dataLength = 42; zeroString = "0"; bitIgnore = 0;
-			//TODO
-			break;
-		case 8: zeroPadding = 3; dataLength = 56; zeroString = "000"; bitIgnore = 0;
-			bufTCI[1] = TVGAIN0;
-			bufTCI[2] = TVGAIN1;
-			bufTCI[3] = TVGAIN2;
-			bufTCI[4] = TVGAIN3;
-			bufTCI[5] = TVGAIN4;
-			bufTCI[6] = TVGAIN5;
-			bufTCI[7] = TVGAIN6;
-			break;
-		case 9: zeroPadding = 3; dataLength = 160; zeroString = "000"; bitIgnore = 0;
-			//TODO
-			break;
-		case 10: zeroPadding = 5; dataLength = 46; zeroString = "00000"; bitIgnore = 0;
-			//TODO
-			break;
-		case 11: zeroPadding = 3; dataLength = 8; zeroString = "000"; bitIgnore = 0;
-			bufTCI[1] = EE_CNTRL;
-			break;
-		case 12: dataLength = 1024; break; //read only
-		case 13: zeroPadding = 3; zeroString = "000";  dataLength = 352; bitIgnore = 0;
-			bufTCI[1] = USER_DATA1;
-			bufTCI[2] = USER_DATA2;
-			bufTCI[3] = USER_DATA3;
-			bufTCI[4] = USER_DATA4;
-			bufTCI[5] = USER_DATA5;
-			bufTCI[6] = USER_DATA6;
-			bufTCI[7] = USER_DATA7;
-			bufTCI[8] = USER_DATA8;
-			bufTCI[9] = USER_DATA9;
-			bufTCI[10] = USER_DATA10;
-			bufTCI[11] = USER_DATA11;
-			bufTCI[12] = USER_DATA12;
-			bufTCI[13] = USER_DATA13;
-			bufTCI[14] = USER_DATA14;
-			bufTCI[15] = USER_DATA15;
-			bufTCI[16] = USER_DATA16;
-			bufTCI[17] = USER_DATA17;
-			bufTCI[18] = USER_DATA18;
-			bufTCI[19] = USER_DATA19;
-			bufTCI[20] = USER_DATA20;
-			bufTCI[21] = TVGAIN0;
-			bufTCI[22] = TVGAIN1;
-			bufTCI[23] = TVGAIN2;
-			bufTCI[24] = TVGAIN3;
-			bufTCI[25] = TVGAIN4;
-			bufTCI[26] = TVGAIN5;
-			bufTCI[27] = TVGAIN6;
-			bufTCI[28] = INIT_GAIN;
-			bufTCI[29] = FREQUENCY;
-			bufTCI[30] = DEADTIME;
-			bufTCI[31] = PULSE_P1;
-			bufTCI[32] = PULSE_P2;
-			bufTCI[33] = CURR_LIM_P1;
-			bufTCI[34] = CURR_LIM_P2;
-			bufTCI[35] = REC_LENGTH;
-			bufTCI[36] = FREQ_DIAG;
-			bufTCI[37] = SAT_FDIAG_TH;
-			bufTCI[38] = FVOLT_DEC;
-			bufTCI[39] = DECPL_TEMP;
-			bufTCI[40] = DSP_SCALE;
-			bufTCI[41] = TEMP_TRIM;
-			bufTCI[42] = P1_GAIN_CTRL;
-			bufTCI[43] = P2_GAIN_CTRL;
-			bufTCI[44] = EE_CRC;
-			break;
-		case 14: break; //read only (reserved)
-		case 15: dataLength = 16; break; //read only						
-		default: return;
-		}
-
-		// calculate checksum	
-			// convert byte to binary string	
-		dataLoops = ((dataLength + ((zeroPadding + bitIgnore) - 3)) / 8) + 1;
-
-		String tempString = "";
-		for (int i = 0; i < dataLoops; i++)
-		{
-			tempString = String((int)bufTCI[i], BIN);
-			while (tempString.length() < 8)
-			{
-				tempString = "0" + tempString;	// add leading zero to get 8 bit BIN representaiton
-			}
-			dataString.concat(tempString);
-		}
-		dataString = dataString.substring(3); // truncate leading zeros
-		dataString.concat(zeroString); // append zero padding to binary string
-
-	// convert binary string to bytes for checksum calculation
-		String parsed = "";
-		byte value = 0;
-		for (int k = 0; k < dataLoops; k++)
-		{
-			parsed = dataString.substring(k * 8, (k * 8) + 8);
-			char s[9];
-			parsed.toCharArray(s, 9);
-			for (int i = 0; i < strlen(s); i++)  // for every character in the string  strlen(s) returns the length of a char array
-			{
-				value *= 2; // double the result so far
-				if (s[i] == '1') value++;  //add 1 if needed
-			}
-			bufTCI[k] = value;
-		}
-
-		// generate TCI checksum
-		uint16_t carry = 0;
-		for (int i = 0; i < dataLoops; i++)
-		{
-			if ((bufTCI[i] + carry) < carry)
-			{
-				carry = carry + bufTCI[i] + 1;
-			}
-			else
-			{
-				carry = carry + bufTCI[i];
-			}
-
-			if (carry > 0xFF)
-			{
-				carry = carry - 255;
-			}
-		}
-		carry = (~carry & 0x00FF);
-
-		// send CFG_TCI low pulse of 1.27ms
-		tciCommand(4);
-
-		// transmit r/w , index, and data bits. 
-		for (int m = 0; m < dataLoops - 1; m++)
-		{
-			data = bufTCI[m];
-			pga460::tciByteToggle(data, 0); // send bits 7..0			
-		}
-
-		// send last byte without zero padding
-		data = bufTCI[dataLoops - 1];
-		{
-			data = data >> (zeroPadding + bitIgnore);
-			pga460::tciByteToggle(data, (zeroPadding + bitIgnore));
-		}
-
-		// send checksum
-		data = (byte)carry;
-		pga460::tciByteToggle(data, 0);
-	}
-
-	else // TCI read command
-	{
-		int recvLength = 0; 	// number of bits to expect for the index to be read
-		bool recvState = 0xFF;	// receive state initiated to idle high
-		bool lastState = 0xFF;	// last state read initiated to idle high
-		int element = 0;		// bufRecv byte element to save bit capture to
-		int bitCount = 0;		// number of bits read to auto increment bufRecv element after 8 hits
-
-		switch (index)
-		{
-		case 0: recvLength = 8; break;
-		case 1: recvLength = 24; break;
-		case 2: recvLength = 8; break;
-		case 3: recvLength = 18; break;
-		case 4: recvLength = 8; break;
-		case 5: recvLength = 124; break;
-		case 6: recvLength = 124; break;
-		case 7: recvLength = 42; break;
-		case 8: recvLength = 56; break;
-		case 9: recvLength = 160; break;
-		case 10: recvLength = 46; break;
-		case 11: recvLength = 8; break;
-		case 12: recvLength = 1024; break;
-		case 13: recvLength = 352; break;
-		case 14: recvLength = 0; break;
-		case 15: recvLength = 16; break;
-		default: return;
-		}
-
-		memset(bufRecv, 0xFF, sizeof(bufRecv)); // idle-high receive buffer data
-		starttime = millis();
-
-		// send CFG_TCI low pulse of 1.27ms
-		tciCommand(4);
-		data = 0x1F & (0x00 + index);
-		pga460::tciByteToggle(data, 3);
-		delayMicroseconds(100); //TCI deadtime	 
-
-		// capture first response toggle by sampling center of 300us TCI bit indicate 0 or 1
-		delayMicroseconds(150);
-		lastState = digitalRead(TCI_RX);
-		bitWrite(bufRecv[element], 7 - bitCount, digitalRead(TCI_RX));
-		bitCount++;
-
-		while ((millis() - starttime) < 500) // timeout after 0.5 seconds
-		{
-			recvState = digitalRead(TCI_RX);
-			if (((recvState != lastState) && (recvState == 0))) // check for high-to-low toggle
-			{
-				// sample center of 300us TCI bit indicate 0 or 1
-				delayMicroseconds(150);
-				bitWrite(bufRecv[element], 7 - bitCount, digitalRead(TCI_RX));
-				bitCount++;
-				if (bitCount == 8)
-				{
-					bitCount = 0;
-					element++;
-				}
-			}
-			lastState = recvState;
-			delayMicroseconds(10); // master defined deglitcher timeout
-		}
-	}
-	return;
-}
-
-/*------------------------------------------------- tciByteToggle -----
- |  Function tciByteToggle
- |
- |  Purpose:  Toggle the TCI_TX pin based on the bit data of the byte data passed in.
- |		A bit value of '1' toggles TCI_TX low for 100us, then holds it high for 200us.
- |		A bit value of '0' toggles TCI_TX low for 200us, then holds it high for 100us.
- |
- |  Parameters:
- |		data (IN) -- byte value to bit parse.
- |		zeroPadding (IN) -- bit toggle based on the number of zeros padded. Zero padding is for checksum calculation only.
- |
- |  Returns: none
- *-------------------------------------------------------------------*/
-void pga460::tciByteToggle(byte data, byte zeroPadding)
-{
-	byte mask = 0x80;
-	int numBits = 8;
-	switch (zeroPadding)
-	{
-	case 0: mask = 0x80; numBits = 8; break;
-	case 1: mask = 0x40; numBits = 7; break;
-	case 2: mask = 0x20; numBits = 6; break;
-	case 3: mask = 0x10; numBits = 5; break;
-	case 4: mask = 0x08; numBits = 4; break;
-	case 5: mask = 0x04; numBits = 3; break;
-	case 6: mask = 0x02; numBits = 2; break;
-	case 7: mask = 0x01; numBits = 1; break;
-	default: return;
-	}
-
-	for (int n = 0; n < numBits; n++)
-	{
-		// set line low for 100us if bit is 1, low for 200us if bit is 0
-		if (data & mask) // consider leftmost bit (MSB out first)
-		{
-			digitalWrite(TCI_TX, LOW);
-			delayMicroseconds(100);
-			digitalWrite(TCI_TX, HIGH);
-			delayMicroseconds(200);
-		}
-		else
-		{
-			digitalWrite(TCI_TX, LOW);
-			delayMicroseconds(200);
-			digitalWrite(TCI_TX, HIGH);
-			delayMicroseconds(100);
-		}
-		data <<= 1; // shift byte left so next bit will be leftmost
-	}
-	return;
-}
-
-/*------------------------------------------------- tciRecord -----
- |  Function tciRecord
- |
- |  Purpose:  Record TCI_RX toggle burst and/or low activity to time stamp high-to-low transitions representing
-		time-of-flight measurements. The time-of-flight is captures in microseconds, and saved to the ultrasonic
-		measurement results array to later convert time-of-flight to distance in meters.
- |
- |  Parameters:
- |		data (IN) -- byte value to bit parse.
- |		numObj (IN) -- number of objects/toggles to monitor the TCI_RX line for (limited to 8 for this library)
- |
- |  Returns: none
- *-------------------------------------------------------------------*/
-void pga460::tciRecord(byte numObj)
-{
-	bool recvState = 0;
-	bool lastState = 0;
-	tciToggle = micros();
-	byte objCount = 0;
-	starttime = millis();
-	delayMicroseconds(300); //wait until after STAT bits are toggled by PGA460
-
-	while (((millis() - starttime) < 100) && (objCount < numObj)) // timeout after 100ms, or after set number of objects are registered
-	{
-		recvState = digitalRead(TCI_RX);
-		if (((recvState != lastState) && (recvState == 0))) // check for high-to-low toggle of TCI_RX line
-		{
-			objTime[objCount] = (int)(micros() - tciToggle); // capture time-of-flight
-			objCount++;
-		}
-		lastState = recvState;
-		delayMicroseconds(10); // master implemented deglitcher //8cm resolution due to micros timer
-	}
-
-	if (objCount == (numObj - 1)) // if number of objects fills before timer expires
-	{
-		delay(100 - (millis() - starttime)); //wait a total time of 100ms regardless
-	}
-
-	// save each TCI time-of-flight to ultrasonic measurement results array (16 bit parsed into two 8 byte elements)
-	for (int i = 0; i < objCount; i++)
-	{
-		ultraMeasResult[(i * 4) + 1] = (objTime[i] >> 8) & 0x00FF; // MSB
-		ultraMeasResult[(i * 4) + 2] = 0x00FF; //LSB
-	}
-}
-
-/*------------------------------------------------- tciCommand -----
- |  Function tciCommand
- |
- |  Purpose:  Toggle TCI_TX low for micro second duration based on nominal requirement of TCI command.
- |
- |  Parameters:
- |		cmd (IN) -- which TCI command to issue
- |			• 0 = BURST/LISTEN (Preset1)
- |			• 1 = BURST/LISTEN (Preset2)
- |			• 2 = LISTEN only (Preset1)
- |			• 3 = LISTEN only (Preset2)
- |			• 4 = Device configuration
- |			• 5 = Temperature measurement
- |			• 6 = Noise level
- |
- |  Returns: none
- *-------------------------------------------------------------------*/
-void pga460::tciCommand(byte cmd)
-{
-	digitalWrite(TCI_TX, LOW);
-
-	switch (cmd)
-	{
-	case 0: delayMicroseconds(400); break; //send P1BL_TCI low pulse
-	case 1: delayMicroseconds(1010); break; //send P2BL_TCI low pulse
-	case 2: delayMicroseconds(780); break; //send P1LO_TCI low pulse
-	case 3: delayMicroseconds(580); break; //send P2LO_TCI low pulse
-	case 4: delayMicroseconds(1270); break; //send CFG_TCI low pulse
-	case 5: delayMicroseconds(1550); break; //send TEMP_TCI low pulse
-	case 6: delayMicroseconds(2200); break; //send NOISE_TCI low pulse
-	default: break;
-	}
-
-	digitalWrite(TCI_TX, HIGH);
-	delayMicroseconds(100); //TCI deadtime
-}
-
-
 
 /*------------------------------------------------- pga460SerialFlush -----
  |  Function pga460SerialFlush
@@ -2411,37 +1885,6 @@ void pga460::pga460SerialFlush()
 	return;
 }
 
-
-
-/*------------------------------------------------- triangulation -----
- |  Function triangulation
- |
- |  Purpose:  Uses the law of cosines to compute the position of the
- |			targeted object from transceiver S1.
- |
- |  Parameters:
- |		distanceA (IN) -- distance (m) from sensor module 1 (S1) to the targeted object based on UMR result
- |		distanceB (IN) -- distance (m) between sensor module 1 (S1) and sensor module 2 (S2)
- |		distanceC (IN) -- distance (m) from sensor module 2 (S2) to the targeted object based on UMR result
- |
- |  Returns:  angle (degrees) from transceiver element S1 to the targeted object
- *-------------------------------------------------------------------*/
-double pga460::triangulation(double a, double b, double c)
-{
-	// LAW OF COSINES
-	double inAngle;
-	if (a + b > c)
-	{
-		return inAngle = (acos(((a*a) + (b*b) - (c*c)) / (2 * a*b))) * 57.3; //Radian to Degree = Rad * (180/PI)
-	}
-	else
-	{
-		return 360;
-	}
-
-	// COORDINATE
-	// TODO
-}
 
 /*------------------------------------------------- registerRead -----
  |  Function registerRead
@@ -2524,447 +1967,7 @@ byte pga460::registerWrite(byte addr, byte data)
 	delay(10);
 }
 
-/*------------------------------------------------- autoThreshold -----
- |  Function autoThreshold
- |
- |  Purpose:  Automatically assigns threshold time and level values
- |  			based on a no-object burst/listen command
- |
- |  Parameters:
- |		cmd (IN) -- preset 1 or 2 burst and/or listen command to run
- |		noiseMargin (IN) -- margin between maximum downsampled noise
- |						value and the threshold level in intervals
- |						of 8.
- |		windowIndex (IN) -- spacing between each threshold time as an
- |						index (refer to datasheet for microsecond
- |						equivalent). To use the existing threshold
- |						times, enter a value of '16'.
- |		autoMax (IN) -- automatically set threshold levels up to this
- |					threshold point (maximum is 12). Remaining levels
- |					will not change.
- |		loops (IN) -- number of command loops to run to collect a
- |					running average of the echo data dump points.
- |
- |  Returns:  none
- *-------------------------------------------------------------------*/
-void pga460::autoThreshold(byte cmd, byte noiseMargin, byte windowIndex, byte autoMax, byte avgLoops)
-{
-	// local variables
-	byte thrTime[6]; // threshold time values for selected preset
-	byte thrLevel[10]; //threshold level values for selected preset
-	byte thrMax[12]; // maximum echo data dump values per partition
-	byte presetOffset = 0; // determines if regsiter threshold address space is initialized at P1 or P2
-	byte thrOffset = 0; // -6 to +7 where MSB is sign value
-	bool thrOffsetFlag = 0; //when high, the level offset value is updated
 
-	//read existing threhsold values into thrTime array
-	switch (cmd)
-	{
-		//Preset 1 command
-	case 0:
-	case 2:
-		pga460::thresholdBulkRead(1);
-		break;
-		//Preset 2 command
-	case 1:
-	case 3:
-		pga460::thresholdBulkRead(2);
-		presetOffset = 16;
-		break;
-		//Invalid command
-	default:
-		return;
-		break;
-	}
-
-	// set thrTime and thrLevel to existing threshold time and level values respectively
-	for (byte h = 0; h < 6; h++)
-	{
-		thrTime[h] = bulkThr[h + presetOffset];
-	}
-	for (byte g = 0; g < 10; g++)
-	{
-		thrLevel[g] = bulkThr[g + 6 + presetOffset];
-	}
-
-	// replace each preset time with windowIndex for the number of points to auto-calc
-	if (windowIndex >= 16)
-	{
-		//skip threshold-time configuration
-	}
-	else
-	{
-		for (byte i = 0; i < 12; i += 2)
-		{
-
-			if (autoMax > i)
-			{
-				thrTime[i / 2] = thrTime[i / 2] & 0x0F;
-				thrTime[i / 2] = (windowIndex << 4) | thrTime[i / 2];
-				if (autoMax > i + 1)
-				{
-					thrTime[i / 2] = thrTime[i / 2] & 0xF0;
-					thrTime[i / 2] = (windowIndex & 0x0F) | thrTime[i / 2];
-				}
-			}
-		}
-	}
-
-	// run burst-and-listen to collect EDD data
-	pga460::runEchoDataDump(cmd);
-
-	// read the record length value for the preset
-	byte recLength = pga460::registerRead(0x22); // read REC_LENGTH Register
-	switch (cmd)
-	{
-		//Preset 1 command
-	case 0:
-	case 2:
-		recLength = (recLength >> 4) & 0x0F;
-		break;
-		//Preset 2 command
-	case 1:
-	case 3:
-		recLength = recLength & 0x0F;
-		break;
-		//Invalid command
-	default:
-		return;
-		break;
-	}
-
-	// convert record length value to time equivalent in microseconds
-	unsigned int recTime = (recLength + 1) * 4096;
-
-	//determine the number of threshold points that are within the record length time
-	byte numPoints = 0;
-	byte thrTimeReg = 0;
-	unsigned int thrMicro = 0; // threhsold total time in microseconds
-	unsigned int eddMarker[12]; // echo data dump time marker between each threhsold point
-	for (thrTimeReg = 0; thrTimeReg < 6; thrTimeReg++)
-	{
-		// check threshold 1 of 2 in single register
-		switch ((thrTime[thrTimeReg] >> 4) & 0x0F)
-		{
-		case 0: thrMicro += 100; break;
-		case 1: thrMicro += 200; break;
-		case 2: thrMicro += 300; break;
-		case 3: thrMicro += 400; break;
-		case 4: thrMicro += 600; break;
-		case 5: thrMicro += 800; break;
-		case 6: thrMicro += 1000; break;
-		case 7: thrMicro += 1200; break;
-		case 8: thrMicro += 1400; break;
-		case 9: thrMicro += 2000; break;
-		case 10: thrMicro += 2400; break;
-		case 11: thrMicro += 3200; break;
-		case 12: thrMicro += 4000; break;
-		case 13: thrMicro += 5200; break;
-		case 14: thrMicro += 6400; break;
-		case 15: thrMicro += 8000; break;
-		default: break;
-		}
-		eddMarker[thrTimeReg * 2] = thrMicro;
-		if (thrMicro >= recTime)
-		{
-			numPoints = thrTimeReg * 2;
-			thrTimeReg = 6; //exit
-		}
-		else
-		{
-			// check threshold 2 of 2 in single register
-			switch (thrTime[thrTimeReg] & 0x0F)
-			{
-			case 0: thrMicro += 100; break;
-			case 1: thrMicro += 200; break;
-			case 2: thrMicro += 300; break;
-			case 3: thrMicro += 400; break;
-			case 4: thrMicro += 600; break;
-			case 5: thrMicro += 800; break;
-			case 6: thrMicro += 1000; break;
-			case 7: thrMicro += 1200; break;
-			case 8: thrMicro += 1400; break;
-			case 9: thrMicro += 2000; break;
-			case 10: thrMicro += 2400; break;
-			case 11: thrMicro += 3200; break;
-			case 12: thrMicro += 4000; break;
-			case 13: thrMicro += 5200; break;
-			case 14: thrMicro += 6400; break;
-			case 15: thrMicro += 8000; break;
-			default: break;
-			}
-			eddMarker[thrTimeReg * 2 + 1] = thrMicro;
-			if (thrMicro >= recTime)
-			{
-				numPoints = (thrTimeReg * 2) + 1;
-				thrTimeReg = 6; //exit
-			}
-		}
-	}
-	if (numPoints == 0) //if all points fall within the record length
-	{
-		numPoints = 11;
-	}
-
-	//convert up to 12 echo data dump markers from microseconds to index
-	byte eddIndex[13];
-	eddIndex[0] = 0;
-	for (byte l = 0; l < 12; l++)
-	{
-		eddIndex[l + 1] = ((eddMarker[l] / 100) * 128) / (recTime / 100); // divide by 100 for best accuracy in MSP430
-	}
-
-	// downsample the echo data dump based on the number of partitions
-	memset(thrMax, 0x00, 12); // zero thrMax array
-	byte eddLevel = 0;
-	for (byte j = 0; j < numPoints + 1; j++)
-	{
-		eddLevel = 0;
-		for (byte k = eddIndex[j]; k < eddIndex[j + 1]; k++)
-		{
-			eddLevel = pga460::pullEchoDataDump(k);
-			if (thrMax[j] < eddLevel)
-			{
-				thrMax[j] = eddLevel;
-			}
-		}
-	}
-	//set threhsold points which exceed the record length to same value as last valid value
-	if (numPoints < autoMax)
-	{
-		for (int o = numPoints; o < autoMax; o++)
-		{
-			if (numPoints == 0)
-			{
-				thrMax[o] = 128;
-			}
-			else
-			{
-				thrMax[o] = thrMax[numPoints - 1];
-			}
-		}
-	}
-
-	// filter y-max for level compatibility of first eight points
-	for (int m = 0; m < 8; m++)
-	{
-		//first eight levels must be mutliples of eight
-		while ((thrMax[m] % 8 != 0) && (thrMax[m] < 248))
-		{
-			thrMax[m] += 1;
-		}
-	}
-
-	// apply noise floor offset
-	for (int n = 0; n < 12; n++)
-	{
-		if (thrMax[n] + noiseMargin >= 248 && thrMax[n] + noiseMargin < 255)
-		{
-			thrMax[n] = 248;
-			thrOffset = 0b0110; //+6
-			thrOffsetFlag = true;
-		}
-		else if (thrMax[n] + noiseMargin >= 255)
-		{
-			thrMax[n] = 248;
-			thrOffset = 0b0111; // +7
-			thrOffsetFlag = true;
-		}
-		else
-		{
-			thrMax[n] += noiseMargin;
-		}
-	}
-
-	//convert first eight auto calibrated levels to five-bit equivalents
-	byte rounding = 0;
-	if (autoMax >= 8)
-	{
-		rounding = 8;
-	}
-	else
-	{
-		rounding = autoMax;
-	}
-	for (byte p = 0; p < rounding; p++)
-	{
-		thrMax[p] = thrMax[p] / 8;
-	}
-
-	// concatenate and merge threshold level register values
-	if (autoMax > 0) //Px_THR_6 L1,L2
-	{
-		thrLevel[0] = (thrLevel[0] & ~0xF8) | (thrMax[0] << 3);
-	}
-	if (autoMax > 1) //Px_THR_6 L1,L2
-	{
-		thrLevel[0] = (thrLevel[0] & ~0x07) | (thrMax[1] >> 2);
-	}
-
-	if (autoMax > 1) //Px_THR_7 L2,L3,L4
-	{
-		thrLevel[1] = (thrLevel[1] & ~0xC0) | (thrMax[1] << 6);
-	}
-	if (autoMax > 2) //Px_THR_7 L2,L3,L4
-	{
-		thrLevel[1] = (thrLevel[1] & ~0x3E) | (thrMax[2] << 1);
-	}
-	if (autoMax > 3) //Px_THR_7 L2,L3,L4
-	{
-		thrLevel[1] = (thrLevel[1] & ~0x01) | (thrMax[3] >> 4);
-	}
-
-	if (autoMax > 3) //Px_THR_8 L4,L5
-	{
-		thrLevel[2] = (thrLevel[2] & ~0xF0) | (thrMax[3] << 4);
-	}
-	if (autoMax > 4) //Px_THR_8 L4,L5
-	{
-		thrLevel[2] = (thrLevel[2] & ~0x0F) | (thrMax[4] >> 1);
-	}
-
-	if (autoMax > 4) //Px_THR_9 L5,L6,L7
-	{
-		thrLevel[3] = (thrLevel[3] & ~0x80) | (thrMax[4] << 7);
-	}
-	if (autoMax > 5) //Px_THR_9 L5,L6,L7
-	{
-		thrLevel[3] = (thrLevel[3] & ~0x7C) | (thrMax[5] << 2);
-	}
-	if (autoMax > 6) //Px_THR_9 L5,L6,L7
-	{
-		thrLevel[3] = (thrLevel[3] & ~0x03) | (thrMax[6] >> 3);
-	}
-
-	if (autoMax > 6) //Px_THR_10 L7,L8
-	{
-		thrLevel[4] = (thrLevel[4] & ~0xE0) | (thrMax[6] << 5);
-	}
-	if (autoMax > 7) //Px_THR_10 L7,L8
-	{
-		thrLevel[4] = (thrLevel[4] & ~0x1F) | (thrMax[7]);
-	}
-
-	if (autoMax > 8) //Px_THR_11 L9 
-	{
-		thrLevel[5] = thrMax[8];
-	}
-	if (autoMax > 9) //Px_THR_12 L10
-	{
-		thrLevel[6] = thrMax[9];
-	}
-	if (autoMax > 10) //Px_THR_13 L11 
-	{
-		thrLevel[7] = thrMax[10];
-	}
-	if (autoMax > 11) //Px_THR_14 L12
-	{
-		thrLevel[8] = thrMax[11];
-	}
-	if (thrOffsetFlag == true) //Px_THR_15 LOff
-	{
-		thrLevel[9] = thrOffset & 0x0F;
-	}
-
-	// update threshold register values
-	switch (cmd)
-	{
-		//Preset 1 command
-	case 0:
-	case 2:
-		P1_THR_0 = thrTime[0];
-		P1_THR_1 = thrTime[1];
-		P1_THR_2 = thrTime[2];
-		P1_THR_3 = thrTime[3];
-		P1_THR_4 = thrTime[4];
-		P1_THR_5 = thrTime[5];
-		P1_THR_6 = thrLevel[0];
-		P1_THR_7 = thrLevel[1];
-		P1_THR_8 = thrLevel[2];
-		P1_THR_9 = thrLevel[3];
-		P1_THR_10 = thrLevel[4];
-		P1_THR_11 = thrLevel[5];
-		P1_THR_12 = thrLevel[6];
-		P1_THR_13 = thrLevel[7];
-		P1_THR_14 = thrLevel[8];
-		P1_THR_15 = thrLevel[9];
-
-		pga460::thresholdBulkRead(2);
-		presetOffset = 16;
-
-		P2_THR_0 = bulkThr[0 + presetOffset];
-		P2_THR_1 = bulkThr[1 + presetOffset];
-		P2_THR_2 = bulkThr[2 + presetOffset];
-		P2_THR_3 = bulkThr[3 + presetOffset];
-		P2_THR_4 = bulkThr[4 + presetOffset];
-		P2_THR_5 = bulkThr[5 + presetOffset];
-		P2_THR_6 = bulkThr[6 + presetOffset];
-		P2_THR_7 = bulkThr[7 + presetOffset];
-		P2_THR_8 = bulkThr[8 + presetOffset];
-		P2_THR_9 = bulkThr[9 + presetOffset];
-		P2_THR_10 = bulkThr[10 + presetOffset];
-		P2_THR_11 = bulkThr[11 + presetOffset];
-		P2_THR_12 = bulkThr[12 + presetOffset];
-		P2_THR_13 = bulkThr[13 + presetOffset];
-		P2_THR_14 = bulkThr[14 + presetOffset];
-		P2_THR_15 = bulkThr[15 + presetOffset];
-		break;
-		//Preset 2 command
-	case 1:
-	case 3:
-		P2_THR_0 = thrTime[0];
-		P2_THR_1 = thrTime[1];
-		P2_THR_2 = thrTime[2];
-		P2_THR_3 = thrTime[3];
-		P2_THR_4 = thrTime[4];
-		P2_THR_5 = thrTime[5];
-		P2_THR_6 = thrLevel[0];
-		P2_THR_7 = thrLevel[1];
-		P2_THR_8 = thrLevel[2];
-		P2_THR_9 = thrLevel[3];
-		P2_THR_10 = thrLevel[4];
-		P2_THR_11 = thrLevel[5];
-		P2_THR_12 = thrLevel[6];
-		P2_THR_13 = thrLevel[7];
-		P2_THR_14 = thrLevel[8];
-		P2_THR_15 = thrLevel[9];
-
-		pga460::thresholdBulkRead(1);
-		presetOffset = 0;
-
-		P1_THR_0 = bulkThr[0 + presetOffset];
-		P1_THR_1 = bulkThr[1 + presetOffset];
-		P1_THR_2 = bulkThr[2 + presetOffset];
-		P1_THR_3 = bulkThr[3 + presetOffset];
-		P1_THR_4 = bulkThr[4 + presetOffset];
-		P1_THR_5 = bulkThr[5 + presetOffset];
-		P1_THR_6 = bulkThr[6 + presetOffset];
-		P1_THR_7 = bulkThr[7 + presetOffset];
-		P1_THR_8 = bulkThr[8 + presetOffset];
-		P1_THR_9 = bulkThr[9 + presetOffset];
-		P1_THR_10 = bulkThr[10 + presetOffset];
-		P1_THR_11 = bulkThr[11 + presetOffset];
-		P1_THR_12 = bulkThr[12 + presetOffset];
-		P1_THR_13 = bulkThr[13 + presetOffset];
-		P1_THR_14 = bulkThr[14 + presetOffset];
-		P1_THR_15 = bulkThr[15 + presetOffset];
-		break;
-		//Invalid command
-	default:
-		return;
-		break;
-	}
-
-	byte p1ThrMap[16] = { P1_THR_0, P1_THR_1, P1_THR_2, P1_THR_3, P1_THR_4, P1_THR_5,
-							P1_THR_6, P1_THR_7, P1_THR_8, P1_THR_9, P1_THR_10, P1_THR_11,
-							P1_THR_12, P1_THR_13, P1_THR_14, P1_THR_15 };
-	byte p2ThrMap[16] = { P2_THR_0, P2_THR_1, P2_THR_2, P2_THR_3, P2_THR_4, P2_THR_5,
-							P2_THR_6, P2_THR_7, P2_THR_8, P2_THR_9, P2_THR_10, P2_THR_11,
-							P2_THR_12, P2_THR_13, P2_THR_14, P2_THR_15 };
-
-	pga460::thresholdBulkWrite(p1ThrMap, p2ThrMap);
-
-}
 
 /*------------------------------------------------- thresholdBulkRead -----
  |  Function thresholdBulkRead
@@ -3040,8 +2043,7 @@ void pga460::thresholdBulkRead(byte preset)
 void pga460::thresholdBulkWrite(byte *p1ThrMap, byte *p2ThrMap)
 {
 	//bulk write new threshold values
-	if ((comm == 0 || comm == 2 || comm == 3) && (comm != 6)) 	// USART or OWU mode and not busDemo6
-	{
+	
 		byte buf16[35] = { syncByte,	THRBW, p1ThrMap[0], p1ThrMap[1], p1ThrMap[2], p1ThrMap[3], p1ThrMap[4], p1ThrMap[5],
 			p1ThrMap[6], p1ThrMap[7], p1ThrMap[8], p1ThrMap[9], p1ThrMap[10], p1ThrMap[11], p1ThrMap[12],
 			p1ThrMap[13], p1ThrMap[14], p1ThrMap[15],
@@ -3049,27 +2051,12 @@ void pga460::thresholdBulkWrite(byte *p1ThrMap, byte *p2ThrMap)
 			p2ThrMap[6], p2ThrMap[7], p2ThrMap[8], p2ThrMap[9], p2ThrMap[10], p2ThrMap[11], p2ThrMap[12],
 			p2ThrMap[13], p2ThrMap[14], p2ThrMap[15],
 			calcChecksum(THRBW) };
-		if (comm == 0 || comm == 2) // UART or OWU mode
-		{
+		
 			Serial1.write(buf16, sizeof(buf16)); // serial transmit master data for bulk threhsold
-		}
+		
 
 
-	}
-	else if (comm == 6)
-	{
-		return;
-	}
-	else if (comm == 1) // TCI mode
-	{
-		tciIndexRW(5, true); //TCI Threshold Preset 1 write
-		tciIndexRW(6, true); //TCI Threshold Preset 2 write
-	}
-	else
-	{
-		//do nothing
-	}
-
+	
 	delay(100);
 	return;
 }

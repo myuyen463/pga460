@@ -51,7 +51,7 @@ public:
 	void runEchoDataDump(byte preset);
 	void broadcast(bool eeBulk, bool tvgBulk, bool thrBulk);
 	void toggleLEDs(bool ds1State, bool fdiagState, bool vdiagState);
-	void autoThreshold(byte cmd, byte noiseMargin, byte windowIndex, byte autoMax, byte avgLoops);
+	
 	void eepromThreshold(byte preset, bool saveLoad);
 	void thresholdBulkRead(byte preset);
 	void thresholdBulkWrite(byte p1ThrMap[], byte p2ThrMap[]);
@@ -59,15 +59,14 @@ public:
 	bool pullUltrasonicMeasResult(bool busDemo);
 	double printUltrasonicMeasResult(byte umr);
 	double runDiagnostics(byte run, byte diag);
-	double triangulation(double a, double b, double c);
-
+	
 private:
 	byte calcChecksum(byte cmd);
 	void pga460SerialFlush();
-	void tciRecord(byte numObj);
-	void tciByteToggle(byte data, byte zeroPadding);
-	void tciIndexRW(byte index, bool write);
-	void tciCommand(byte cmd);
-	//void spiTransfer(byte* mosi, byte size);
-	//void spiMosiIdle(byte size);
+	/*void tcirecord(byte numobj);
+	void tcibytetoggle(byte data, byte zeropadding);
+	void tciindexrw(byte index, bool write);
+	void tcicommand(byte cmd);*/
+	//void spitransfer(byte* mosi, byte size);
+	//void spimosiidle(byte size);
 };

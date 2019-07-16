@@ -309,7 +309,7 @@ void initPGA460() {
     Serial.println("");
   }
   // -+-+-+-+-+-+-+-+-+-+-  others   -+-+-+-+-+-+-+-+-+-+- //
-  commandDelay = 5; //10 * cdMultiplier;                   // command cycle delay result in ms
+  commandDelay = 1; //10 * cdMultiplier;                   // command cycle delay result in ms
   if (numOfObj == 0 || numOfObj > 8) {
     numOfObj = 1;  // sets number of objects to detect to 1 if invalid input
   }
@@ -349,6 +349,7 @@ void loop() {                 // put your main code here, to run repeatedly
   ussc.pullUltrasonicMeasResult(demoMode);      // Pull Ultrasonic Measurement Result
   counter++;
   if(millis() - timer > 1000){
+    Serial.println();
     Serial.println(counter);
     counter = 1;
     timer = millis();
