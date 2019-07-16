@@ -34,6 +34,7 @@
 */
 
 #include "PGA460_USSC.h"
+
 //#include "PGA460_SPI.h"
 #include "Arduino.h"
 
@@ -49,20 +50,15 @@
 #define TXD_LP 4
 #define DECPL_D 5
 #define TEST_A 6
-#define TCI_CLK 7
 #define TEST_D 8
 #define MEM_SOMI 9
 #define MEM_SIMO 10
-#define TCI_RX 14
-#define TCI_TX 15
 #define COM_SEL 17
 #define COM_PD 18
-//#define SPI_CS 33
+
 #define SCLK_CLK 34
 #define MEM_HOLD 36
 #define MEM_CS 37
-
-
 // Serial read timeout in milliseconds
 #define MAX_MILLIS_TO_WAIT 250
 
@@ -195,12 +191,9 @@ byte uartAddr = 0; 			// PGA460 UART device address (0-7). '0' is factory defaul
 byte numObj = 1; 			// number of objects to detect
 //OWU exclusive variables
 signed int owuShift = 0;	// accoutns for OWU receiver buffer offset for capturing master transmitted data - always 0 for standard two-wire UART
-//TCI exclusive variables
-byte bufRecv[128]; 				// TCI receive data buffer for all commands	
-unsigned long tciToggle;		// used to log TCI burst+listen time of object
-unsigned int objTime[8];		// array to capture up to eight object TCI burst+listen toggles
-//SPI exclusive variables
-	//byte misoBuf[131]; 				// SPI MISO receive data buffer for all commands	
+
+HardwareSerial* pgaSerial;
+
 #pragma endregion globals
 
 /*------------------------------------------------- PGA460 Top Level -----
@@ -211,7 +204,12 @@ unsigned int objTime[8];		// array to capture up to eight object TCI burst+liste
  | • An overloaded name (same name used with different argument types)
  | • An ambiguous name (same name used in different classes)
  *-------------------------------------------------------------------*/
-pga460::pga460() {}
+pga460::pga460(HardwareSerial* serial) {
+	pgaSerial = serial;
+	
+	//comm = 0;
+	//Serial.begin(19200);
+}
 
 /*------------------------------------------------- initBoostXLPGA460 -----
  |  Function initBoostXLPGA460
@@ -273,70 +271,19 @@ void pga460::initBoostXLPGA460(byte mode, uint32_t baud, byte uartAddrUpdate)
 
 
 	// set communication mode flag
-	//if (mode < 4) // 0=UART, 1=TCI, 2=OWU, 3=SPI
-	//{
+	if (mode < 4) // 0=UART, 1=TCI, 2=OWU, 3=SPI
+	{
 		comm = mode;
 		// disable synchronous mode dump to external memory
 
-	/*}
-	else if (mode == 6)
-	{
-		comm = 6; // bus demo user input mode only, and threshold or TVG bulk write broadcast commands are true
 	}
-	else if ((mode == 7) || (mode == 9))
-	{
-		comm = mode - 7; // bus demo only for either UART or OWU mode
-	}
+
 	else
 	{
 		comm = 99; // invalid communication type
-	}*/
-
-	//switch (mode)
-	//{
-	//case 0: // UART Mode
-		// enable PGA460 UART communication mode
-		//pinMode(COM_PD, OUTPUT);  digitalWrite(COM_PD, LOW);
-		//pinMode(COM_SEL, OUTPUT);  digitalWrite(COM_SEL, LOW);
-		Serial.begin(baud); 	// initialize COM UART serial channel
-		Serial1.begin(baud, SERIAL_8N2);	// initialize PGA460 UART serial channel
-		//break;
-	/*case 1: //TCI Mode	
-		// enable PGA460 TCI communication mode
-		pinMode(COM_PD, OUTPUT);  digitalWrite(COM_PD, LOW);
-		pinMode(COM_SEL, OUTPUT);  digitalWrite(COM_SEL, LOW);
-		pinMode(TCI_TX, OUTPUT); digitalWrite(TCI_TX, HIGH);
-		pinMode(TCI_RX, INPUT_PULLUP);
-		Serial.begin(baud); 	// initialize COM UART serial channel
-		Serial1.begin(baud);	// initialize PGA460 UART serial channel
-		break;
-	case 2: //OWU setup (part I)
-		// enable PGA460 UART communication mode
-		pinMode(COM_PD, OUTPUT);  digitalWrite(COM_PD, LOW);
-		pinMode(COM_SEL, OUTPUT);  digitalWrite(COM_SEL, LOW);
-		Serial.begin(baud); 	// initialize COM UART serial channel
-		Serial1.begin(baud);	// initialize PGA460 UART serial channel
-		PULSE_P1 = 0x80 | PULSE_P1; // update IO_IF_SEL bit to '1' for OWU mode for bulk EEPROM write
-		break;
-
-
-	default: break;
 	}
-
-	//OWU setup (part II)
-	if ((comm == 2) || (mode == 8)) // mode8 is for one time setup of OWU per slave device for bus demo
-	{
-		// UART write to register PULSE_P1 (addr 0x1E) to set device into OWU mode
-		regAddr = 0x1E;
-		regData = PULSE_P1;
-		byte buf10[5] = { syncByte, SRW, regAddr, regData, calcChecksum(SRW) };
-		Serial1.write(buf10, sizeof(buf10));
-		delay(50);
-
-		// enable PGA460 OWU communication mode
-
-	}*/
-
+	Serial.begin(baud); 	// initialize COM UART serial channel
+	pgaSerial->begin(19200, SERIAL_8N2);
 
 	return;
 }
@@ -389,18 +336,13 @@ void pga460::defaultPGA460(byte xdcr)
 		INIT_GAIN = 0x60;
 		FREQUENCY = 0x8F;
 		DEADTIME = 0xA0;
-		/*if (comm == 2)
-		{
-			PULSE_P1 = 0x80 | 0x04;
-		}
-		else
-		{*/
-			PULSE_P1 = 0x08;
-		//}
+
+		PULSE_P1 = 0x08;
+
 		PULSE_P2 = 0x10;
 		CURR_LIM_P1 = 0x55;
 		CURR_LIM_P2 = 0x55;
-		REC_LENGTH = 0x14;
+		REC_LENGTH = 0x19;
 		FREQ_DIAG = 0x33;
 		SAT_FDIAG_TH = 0xEE;
 		FVOLT_DEC = 0x7C;
@@ -410,121 +352,25 @@ void pga460::defaultPGA460(byte xdcr)
 		P1_GAIN_CTRL = 0x0A;
 		P2_GAIN_CTRL = 0x09;
 		break;
-	/*case 1: // Murata MA40H1SR
-		USER_DATA1 = 0x00;
-		USER_DATA2 = 0x00;
-		USER_DATA3 = 0x00;
-		USER_DATA4 = 0x00;
-		USER_DATA5 = 0x00;
-		USER_DATA6 = 0x00;
-		USER_DATA7 = 0x00;
-		USER_DATA8 = 0x00;
-		USER_DATA9 = 0x00;
-		USER_DATA10 = 0x00;
-		USER_DATA11 = 0x00;
-		USER_DATA12 = 0x00;
-		USER_DATA13 = 0x00;
-		USER_DATA14 = 0x00;
-		USER_DATA15 = 0x00;
-		USER_DATA16 = 0x00;
-		USER_DATA17 = 0x00;
-		USER_DATA18 = 0x00;
-		USER_DATA19 = 0x00;
-		USER_DATA20 = 0x00;
-		TVGAIN0 = 0xAA;
-		TVGAIN1 = 0xAA;
-		TVGAIN2 = 0xAA;
-		TVGAIN3 = 0x51;
-		TVGAIN4 = 0x45;
-		TVGAIN5 = 0x14;
-		TVGAIN6 = 0x50;
-		INIT_GAIN = 0x54;
-		FREQUENCY = 0x32;
-		DEADTIME = 0xA0;
-		/if (comm == 2)
-		{
-			PULSE_P1 = 0x80 | 0x08;
-		}
-		else
-		{
-			PULSE_P1 = 0x08;
-		}
-		PULSE_P2 = 0x10;
-		CURR_LIM_P1 = 0x40;
-		CURR_LIM_P2 = 0x40;
-		REC_LENGTH = 0x19;
-		FREQ_DIAG = 0x33;
-		SAT_FDIAG_TH = 0xEE;
-		FVOLT_DEC = 0x7C;
-		DECPL_TEMP = 0x4F;
-		DSP_SCALE = 0x00;
-		TEMP_TRIM = 0x00;
-		P1_GAIN_CTRL = 0x09;
-		P2_GAIN_CTRL = 0x09;
-		break;
-	case 2: // user custom
-	{
-		// insert custom user EEPROM listing
-	}*/
+
 	default: break;
 	}
 
-	//if ((comm == 0 || comm == 2 || comm == 3) && (comm != 6)) // USART or OWU mode and not busDemo6
-	//{
-		byte buf12[46] = { syncByte, EEBW, USER_DATA1, USER_DATA2, USER_DATA3, USER_DATA4, USER_DATA5, USER_DATA6,
-			USER_DATA7, USER_DATA8, USER_DATA9, USER_DATA10, USER_DATA11, USER_DATA12, USER_DATA13, USER_DATA14,
-			USER_DATA15,USER_DATA16,USER_DATA17,USER_DATA18,USER_DATA19,USER_DATA20,
-			TVGAIN0,TVGAIN1,TVGAIN2,TVGAIN3,TVGAIN4,TVGAIN5,TVGAIN6,INIT_GAIN,FREQUENCY,DEADTIME,
-			PULSE_P1,PULSE_P2,CURR_LIM_P1,CURR_LIM_P2,REC_LENGTH,FREQ_DIAG,SAT_FDIAG_TH,FVOLT_DEC,DECPL_TEMP,
-			DSP_SCALE,TEMP_TRIM,P1_GAIN_CTRL,P2_GAIN_CTRL,calcChecksum(EEBW) };
 
-		//if (comm == 0 || comm == 2) // UART or OWU mode
-		//{
-			Serial1.write(buf12, sizeof(buf12)); // serial transmit master data for bulk EEPROM
-		//}
+	byte buf12[46] = { syncByte, EEBW, USER_DATA1, USER_DATA2, USER_DATA3, USER_DATA4, USER_DATA5, USER_DATA6,
+		USER_DATA7, USER_DATA8, USER_DATA9, USER_DATA10, USER_DATA11, USER_DATA12, USER_DATA13, USER_DATA14,
+		USER_DATA15,USER_DATA16,USER_DATA17,USER_DATA18,USER_DATA19,USER_DATA20,
+		TVGAIN0,TVGAIN1,TVGAIN2,TVGAIN3,TVGAIN4,TVGAIN5,TVGAIN6,INIT_GAIN,FREQUENCY,DEADTIME,
+		PULSE_P1,PULSE_P2,CURR_LIM_P1,CURR_LIM_P2,REC_LENGTH,FREQ_DIAG,SAT_FDIAG_TH,FVOLT_DEC,DECPL_TEMP,
+		DSP_SCALE,TEMP_TRIM,P1_GAIN_CTRL,P2_GAIN_CTRL,calcChecksum(EEBW) };
 
-		delay(50);
 
-		// Update targeted UART_ADDR to address defined in EEPROM bulk switch-case
-		byte uartAddrUpdate = (PULSE_P2 >> 5) & 0x07;
-		if (uartAddr != uartAddrUpdate)
-		{
-			// Update commands to account for new UART addr
-			  // Single Address
-			P1BL = 0x00 + (uartAddrUpdate << 5);
-			P2BL = 0x01 + (uartAddrUpdate << 5);
-			P1LO = 0x02 + (uartAddrUpdate << 5);
-			P2LO = 0x03 + (uartAddrUpdate << 5);
-			TNLM = 0x04 + (uartAddrUpdate << 5);
-			UMR = 0x05 + (uartAddrUpdate << 5);
-			TNLR = 0x06 + (uartAddrUpdate << 5);
-			TEDD = 0x07 + (uartAddrUpdate << 5);
-			SD = 0x08 + (uartAddrUpdate << 5);
-			SRR = 0x09 + (uartAddrUpdate << 5);
-			SRW = 0x0A + (uartAddrUpdate << 5);
-			EEBR = 0x0B + (uartAddrUpdate << 5);
-			EEBW = 0x0C + (uartAddrUpdate << 5);
-			TVGBR = 0x0D + (uartAddrUpdate << 5);
-			TVGBW = 0x0E + (uartAddrUpdate << 5);
-			THRBR = 0x0F + (uartAddrUpdate << 5);
-			THRBW = 0x10 + (uartAddrUpdate << 5);
-		}
-		uartAddr = uartAddrUpdate;
-	/*}
-	else if (comm == 6)
-	{
-		return;
-	}
-	else if (comm == 1) // TCI mode
-	{
-		tciIndexRW(13, true);	// TCI index 13 write		
-	}
-	else
-	{
-		//do nothing
-	}*/
+	pgaSerial->write(buf12, sizeof(buf12)); // serial transmit master data for bulk EEPROM
 
+
+	delay(10);
 	return;
+
 }
 
 /*------------------------------------------------- initThresholds -----
@@ -724,34 +570,14 @@ void pga460::initThresholds(byte thr)
 	default: break;
 	}
 
-	//if ((comm == 0 || comm == 2 || comm == 3) && (comm != 6)) 	// USART or OWU mode and not busDemo6
-	//{
-		byte buf16[35] = { syncByte, THRBW, P1_THR_0, P1_THR_1, P1_THR_2, P1_THR_3, P1_THR_4, P1_THR_5, P1_THR_6,
-			  P1_THR_7, P1_THR_8, P1_THR_9, P1_THR_10, P1_THR_11, P1_THR_12, P1_THR_13, P1_THR_14, P1_THR_15,
-			  P2_THR_0, P2_THR_1, P2_THR_2, P2_THR_3, P2_THR_4, P2_THR_5, P2_THR_6,
-			  P2_THR_7, P2_THR_8, P2_THR_9, P2_THR_10, P2_THR_11, P2_THR_12, P2_THR_13, P2_THR_14, P2_THR_15,
-			  calcChecksum(THRBW) };
-		//if (comm == 0 || comm == 2) // UART or OWU mode
-		//{
-			Serial.println("Init Thres");
-			Serial1.write(buf16, sizeof(buf16)); // serial transmit master data for bulk threhsold
-		//}
+	byte buf16[35] = { syncByte, THRBW, P1_THR_0, P1_THR_1, P1_THR_2, P1_THR_3, P1_THR_4, P1_THR_5, P1_THR_6,
+		P1_THR_7, P1_THR_8, P1_THR_9, P1_THR_10, P1_THR_11, P1_THR_12, P1_THR_13, P1_THR_14, P1_THR_15,
+		P2_THR_0, P2_THR_1, P2_THR_2, P2_THR_3, P2_THR_4, P2_THR_5, P2_THR_6,
+		P2_THR_7, P2_THR_8, P2_THR_9, P2_THR_10, P2_THR_11, P2_THR_12, P2_THR_13, P2_THR_14, P2_THR_15,
+		calcChecksum(THRBW) };
 
+	pgaSerial->write(buf16, sizeof(buf16)); // serial transmit master data for bulk threhsold
 
-	/*}
-	else if (comm == 6)
-	{
-		return;
-	}
-	else if (comm == 1) // TCI mode
-	{
-		tciIndexRW(5, true); //TCI Threshold Preset 1 write
-		tciIndexRW(6, true); //TCI Threshold Preset 2 write
-	}
-	else
-	{
-		//do nothing
-	}*/
 
 	delay(100);
 	return;
@@ -798,30 +624,18 @@ void pga460::initTVG(byte agr, byte tvg)
 	default: break;
 	}
 
-	//if ((comm == 0 || comm == 2 || comm == 3) && (comm != 6)) 	// USART or OWU mode and not busDemo6
-	//{
+	if ((comm == 0 || comm == 2 || comm == 3) && (comm != 6)) 	// USART or OWU mode and not busDemo6
+	{
 		regAddr = 0x26;
 		regData = gain_range;
 		byte buf10[5] = { syncByte, SRW, regAddr, regData, calcChecksum(SRW) };
-		//if (comm == 0 || comm == 2) // UART or OWU mode
-		//{
-			Serial1.write(buf10, sizeof(buf10));
-		//}
+		if (comm == 0 || comm == 2) // UART or OWU mode
+		{
+			pgaSerial->write(buf10, sizeof(buf10));
+		}
 
-	//}
-	/*else if (comm == 6)
-	{
-		return;
 	}
-	else if (comm == 1) // TCI mode
-	{
-		//TODO enable index 10 write
-		//tciIndexRW(10, true);
-	}
-	else
-	{
-		//do nothing
-	}*/
+
 
 	//Set fixed AFE gain value
 	switch (tvg)
@@ -856,32 +670,22 @@ void pga460::initTVG(byte agr, byte tvg)
 		TVGAIN6 = 0xC0;
 		break;
 
+	case 3: //custom
+		TVGAIN0 = 0x8D;
+		TVGAIN1 = 0xEE;
+		TVGAIN2 = 0xEF;
+		TVGAIN3 = 0x65;
+		TVGAIN4 = 0xA6;
+		TVGAIN5 = 0xD8;
+		TVGAIN6 = 0x70;
+		break;
+
 	default: break;
 	}
 
-	//if ((comm == 0 || comm == 2 || comm == 3) && (comm != 6)) 	// USART or OWU mode and not busDemo6
-	//{
-		byte buf14[10] = { syncByte, TVGBW, TVGAIN0, TVGAIN1, TVGAIN2, TVGAIN3, TVGAIN4, TVGAIN5, TVGAIN6, calcChecksum(TVGBW) };
 
-		//if (comm == 0 || comm == 2) // UART or OWU mode
-		//{
-			Serial1.write(buf14, sizeof(buf14)); // serial transmit master data for bulk TVG
-		//}
-
-	/*}
-	else if (comm == 6)
-	{
-		return;
-	}
-	else if (comm == 1) // TCI mode
-	{
-		tciIndexRW(8, true); //TCI bulk TVG write
-	}
-	else
-	{
-		//do nothing
-	}*/
-
+	byte buf14[10] = { syncByte, TVGBW, TVGAIN0, TVGAIN1, TVGAIN2, TVGAIN3, TVGAIN4, TVGAIN5, TVGAIN6, calcChecksum(TVGBW) };
+	pgaSerial->write(buf14, sizeof(buf14)); // serial transmit master data for bulk TVG
 	return;
 }
 
@@ -906,11 +710,6 @@ void pga460::ultrasonicCmd(byte cmd, byte numObjUpdate)
 	numObj = numObjUpdate; // number of objects to detect
 	byte bufCmd[4] = { syncByte, 0xFF, numObj, 0xFF }; // prepare bufCmd with 0xFF placeholders
 
-	//if (comm != 1)
-	//{
-		memset(objTime, 0xFF, 8); // reset and idle-high TCI object buffer
-	//}
-
 	switch (cmd)
 	{
 		// SINGLE ADDRESS		
@@ -926,68 +725,14 @@ void pga460::ultrasonicCmd(byte cmd, byte numObjUpdate)
 		bufCmd[3] = calcChecksum(P2BL);
 		break;
 	}
-	case 2: // Send Preset 1 Listen Only command
-	{
-		bufCmd[1] = P1LO;
-		bufCmd[3] = calcChecksum(P1LO);
-		break;
-	}
-	case 3: // Send Preset 2 Listen Only command
-	{
-		bufCmd[1] = P2LO;
-		bufCmd[3] = calcChecksum(P2LO);
-		break;
-	}
 
-	// BROADCAST
-	/*case 17: // Send Preset 1 Burst + Listen Broadcast command
-	{
-		bufCmd[1] = BC_P1BL;
-		bufCmd[3] = calcChecksum(BC_P1BL);
-		break;
-	}
-	case 18: // Send Preset 2 Burst + Listen Broadcast command
-	{
-		bufCmd[1] = BC_P2BL;
-		bufCmd[3] = calcChecksum(BC_P2BL);
-		break;
-	}
-	case 19: // Send Preset 1 Listen Only Broadcast command
-	{
-		bufCmd[1] = BC_P1LO;
-		bufCmd[3] = calcChecksum(BC_P1LO);
-		break;
-	}
-	case 20: // Send Preset 2 Listen Only Broadcast command
-	{
-		bufCmd[1] = BC_P2LO;
-		bufCmd[3] = calcChecksum(BC_P2LO);
-		break;
-	}
-	*/
+
 	default: return;
 	}
 
-	//if (comm != 1) // USART or OWU modes only
-	//{
-		//if (comm == 0 || comm == 2) // UART or OWU mode
-		//{
-			Serial1.write(bufCmd, sizeof(bufCmd)); // serial transmit master data to initiate burst and/or listen command
-		//}
+	pgaSerial->write(bufCmd, sizeof(bufCmd)); // serial transmit master data to initiate burst and/or listen command
 
-	/*}
-	else if (comm == 1) // TCI mode
-	{
-		tciCommand(cmd); // send preset 1 or 2 burst-and-listen or listen-only command
-		pga460::tciRecord(numObj); // log up to eight TCI object toggles
-	}
-	else
-	{
-		//do nothing
-	}*/
-			if (cmd == 0) delay(10);
-			else delay(25);
-	//delay(70); // maximum record length is 65ms, so delay with margin
+	delay(10); // maximum record length is 65ms, so delay with margin
 	return;
 }
 
@@ -1004,48 +749,40 @@ void pga460::ultrasonicCmd(byte cmd, byte numObjUpdate)
  *-------------------------------------------------------------------*/
 bool pga460::pullUltrasonicMeasResult(bool busDemo)
 {
-		pga460SerialFlush();
+	pga460SerialFlush();
 
-		memset(ultraMeasResult, 0, sizeof(ultraMeasResult));
+	memset(ultraMeasResult, 0, sizeof(ultraMeasResult));
 
-		
-		byte buf5[3] = { syncByte, UMR, calcChecksum(UMR) };
-
-		
-			Serial1.write(buf5, sizeof(buf5));
+	byte buf5[3] = { syncByte, UMR, calcChecksum(UMR) };
 
 
-			while (Serial1.available() < (5 + owuShift))
-			{
-				// wait in this loop until we either get +5 bytes of data, or 0.25 seconds have gone by
-			}
+	pgaSerial->write(buf5, sizeof(buf5)); //serial transmit master data to read ultrasonic measurement results
+	delay(1);
 
-			if ((Serial1.available() < (5 + owuShift)))
-			{
-				if (busDemo == false)
-				{
-					// the data didn't come in - handle the problem here
-					Serial.println("ERROR - Did not receive measurement results!");
-				}
-				return false;
-			}
-			else
-			{
-				for (int n = 0; n < ((2 + (numObj * 4)) + owuShift); n++)
-				{
-					ultraMeasResult[n] = Serial1.read();
-					//delay(1);
-				}
-				for (int n = 0; n < ((2 + (numObj * 4)) + owuShift); n++)
-				{
 
-					Serial.print(ultraMeasResult[n]);
-					Serial.print(" ");
-				}
-			}
-		
-		return true;
-	
+	if ((pgaSerial->available() < (5 + owuShift)))
+	{
+		if (busDemo == false)
+		{
+			// the data didn't come in - handle the problem here
+			Serial.println("ERROR - Did not receive measurement results!");
+		}
+		return false;
+	}
+	else
+	{
+		for (int n = 0; n < ((2 + (numObj * 4)) + owuShift); n++)
+		{
+			ultraMeasResult[n] = pgaSerial->read();
+			//delay(1);
+		}
+		for (int n = 0; n < ((2 + (numObj * 4)) + owuShift); n++)
+		{
+			Serial.print(ultraMeasResult[n]); Serial.print(" ");
+		}
+
+	}
+	return true;
 }
 
 /*------------------------------------------------- printUltrasonicMeasResult -----
@@ -1082,9 +819,6 @@ double pga460::printUltrasonicMeasResult(byte umr)
 	{
 	case 0: //Obj1 Distance (m)
 	{
-		/*Serial.print(ultraMeasResult[1]);
-		Serial.print(" ");
-		Serial.println(ultraMeasResult[2]);*/
 		objDist = (ultraMeasResult[1] << 8) + ultraMeasResult[2];
 		objReturn = (objDist / 2 * 0.000001*speedSound) - digitalDelay;
 		break;
@@ -1251,50 +985,25 @@ double pga460::printUltrasonicMeasResult(byte umr)
  *-------------------------------------------------------------------*/
 void pga460::runEchoDataDump(byte preset)
 {
-	if (comm != 1) // USART or OWU mode
-	{
-		// enable Echo Data Dump bit
-		regAddr = 0x40;
-		regData = 0x80;
-		byte buf10[5] = { syncByte, SRW, regAddr, regData, calcChecksum(SRW) };
-		if (comm == 0 || comm == 2) // UART or OWU mode
-		{
-			pga460SerialFlush();
-			Serial1.write(buf10, sizeof(buf10));
-		}
+	// enable Echo Data Dump bit
+	regAddr = 0x40;
+	regData = 0x80;
+	byte buf10[5] = { syncByte, SRW, regAddr, regData, calcChecksum(SRW) };
 
-		delay(10);
+	pga460SerialFlush();
+	pgaSerial->write(buf10, sizeof(buf10));
 
-		// run preset 1 or 2 burst and or listen command
-		pga460::ultrasonicCmd(preset, 1);
+	delay(10);
 
-		// disbale Echo Data Dump bit
-		regData = 0x00;
-		buf10[3] = regData;
-		buf10[4] = calcChecksum(SRW);
-		if (comm == 0 || comm == 2) // UART or OWU mode
-		{
-			Serial1.write(buf10, sizeof(buf10));
-		}
+	// run preset 1 or 2 burst and or listen command
+	pga460::ultrasonicCmd(preset, 1);
 
-	}
-	else if (comm == 1) // TCI mode
-	{
-		EE_CNTRL = 0x80; 		// enable echo data dump 
-		tciIndexRW(11, true); 	// write to index 11
+	// disbale Echo Data Dump bit
+	regData = 0x00;
+	buf10[3] = regData;
+	buf10[4] = calcChecksum(SRW);
 
-		delay(10);
-		tciCommand(preset); 	// run burst+listen command
-		delay(100);				// delay for maximum record time length with margin
-
-		EE_CNTRL = 0x00; 		// disable echo data dump
-		tciIndexRW(11, true); 	// write to index 11		
-		delay(10);
-	}
-	else
-	{
-		//do nothing
-	}
+	pgaSerial->write(buf10, sizeof(buf10));
 	return;
 }
 
@@ -1331,24 +1040,24 @@ byte pga460::pullEchoDataDump(byte element)
 
 			regAddr = 0x80; // start of EDD memory
 			byte buf9[4] = { syncByte, SRR, regAddr, calcChecksum(SRR) };
-			Serial1.write(buf9, sizeof(buf9)); // read first byte of EDD memory		
+			pgaSerial->write(buf9, sizeof(buf9)); // read first byte of EDD memory		
 
 			for (int m = 0; m < 129; m++) // loop readout by iterating through EDD address range
 			{
 				buf9[2] = regAddr;
 				buf9[3] = calcChecksum(SRR);
-				Serial1.write(buf9, sizeof(buf9));
+				pgaSerial->write(buf9, sizeof(buf9));
 				delay(30);
 
 				for (int n = 0; n < (3 + owuShift); n++)
 				{
 					if (n == (1 + owuShift))
 					{
-						echoDataDump[m] = Serial1.read();
+						echoDataDump[m] = pgaSerial->read();
 					}
 					else
 					{
-						temp = Serial1.read();
+						temp = pgaSerial->read();
 					}
 				}
 				regAddr++;
@@ -1356,21 +1065,7 @@ byte pga460::pullEchoDataDump(byte element)
 		}
 		return echoDataDump[element];
 	}
-	else if (comm == 1) // TCI
-	{
-		if (element == 0)
-		{
-			tciIndexRW(12, false); //only run when first calling this function to read out the entire EDD to the receive buffer
-			delay(500); // wait until EDD read out is completed with margin
-		}
-		delay(10);
-		return bufRecv[element];
-	}
 
-	else
-	{
-		//do nothing
-	}
 	return 0xFF;
 }
 
@@ -1420,24 +1115,14 @@ double pga460::runDiagnostics(byte run, byte diag)
 
 			if (comm == 0 || comm == 2) // UART or OWU mode
 			{
-				Serial1.write(buf8, sizeof(buf8)); //serial transmit master data to read system diagnostic results			
-
-					/*Serial.print("Record 2: Serial status	");
-					Serial.println(Serial1.available());
-					Serial.print("record 3: Shift	");
-					Serial.println((4 + owuShift - owuShiftSysDiag));
-					Serial.print("owuShift:  ");
-					Serial.println(owuShift);
-					Serial.print("owuShiftDiag:  ");
-					Serial.println(owuShiftSysDiag);*/
+				pgaSerial->write(buf8, sizeof(buf8)); //serial transmit master data to read system diagnostic results			
 
 				starttime = millis();
-				while ((Serial1.available() < (4 + owuShift - owuShiftSysDiag)) && ((millis() - starttime) < MAX_MILLIS_TO_WAIT))
+				while ((pgaSerial->available() < (4 + owuShift - owuShiftSysDiag)) && ((millis() - starttime) < MAX_MILLIS_TO_WAIT))
 				{
 					// wait in this loop until we either get +4 bytes of data or 0.25 seconds have gone by
-					//Serial.println("Record 4: Waiting..");
 				}
-				if (Serial1.available() < (4 + owuShift - owuShiftSysDiag))
+				if (pgaSerial->available() < (4 + owuShift - owuShiftSysDiag))
 				{
 					// the data didn't come in - handle the problem here
 					Serial.println("ERROR - Did not receive system diagnostics!");
@@ -1446,8 +1131,7 @@ double pga460::runDiagnostics(byte run, byte diag)
 				{
 					for (int n = 0; n < (4 + owuShift - owuShiftSysDiag); n++)
 					{
-						diagMeasResult[n] = Serial1.read();
-						//Serial.println("Record 5: loops");
+						diagMeasResult[n] = pgaSerial->read();
 					}
 				}
 			}
@@ -1460,7 +1144,7 @@ double pga460::runDiagnostics(byte run, byte diag)
 			byte buf4[4] = { syncByte, TNLM, tempOrNoise, calcChecksum(TNLM) };
 			if (comm == 0 || comm == 2) // UART or OWU mode
 			{
-				Serial1.write(buf4, sizeof(buf4)); //serial transmit master data to run temp measurement
+				pgaSerial->write(buf4, sizeof(buf4)); //serial transmit master data to run temp measurement
 				delay(10);
 				pga460SerialFlush();
 				delay(10);
@@ -1470,7 +1154,7 @@ double pga460::runDiagnostics(byte run, byte diag)
 			byte buf6[3] = { syncByte, TNLR, calcChecksum(TNLR) };
 			if (comm == 0 || comm == 2) // UART or OWU mode
 			{
-				Serial1.write(buf6, sizeof(buf6)); //serial transmit master data to read temperature and noise results
+				pgaSerial->write(buf6, sizeof(buf6)); //serial transmit master data to read temperature and noise results
 			}
 
 			delay(100);
@@ -1483,7 +1167,7 @@ double pga460::runDiagnostics(byte run, byte diag)
 
 			if (comm == 0 || comm == 2) // UART or OWU mode
 			{
-				Serial1.write(buf4, sizeof(buf4)); //serial transmit master data to run noise level measurement (requires at least 8.2ms of post-delay)
+				pgaSerial->write(buf4, sizeof(buf4)); //serial transmit master data to run noise level measurement (requires at least 8.2ms of post-delay)
 			}
 
 
@@ -1494,7 +1178,7 @@ double pga460::runDiagnostics(byte run, byte diag)
 			byte buf6[3] = { syncByte, TNLR, calcChecksum(TNLR) }; //serial transmit master data to read temperature and noise results
 			if (comm == 0 || comm == 2) // UART or OWU mode
 			{
-				Serial1.write(buf6, sizeof(buf6));
+				pgaSerial->write(buf6, sizeof(buf6));
 			}
 
 
@@ -1506,12 +1190,12 @@ double pga460::runDiagnostics(byte run, byte diag)
 			if (diag == 2 || diag == 3) // pull temp and noise level results
 			{
 				starttime = millis();
-				while ((Serial1.available() < (4 + owuShift - owuShiftSysDiag)) && ((millis() - starttime) < MAX_MILLIS_TO_WAIT))
+				while ((pgaSerial->available() < (4 + owuShift - owuShiftSysDiag)) && ((millis() - starttime) < MAX_MILLIS_TO_WAIT))
 				{
 					// wait in this loop until we either get +4 bytes of data or 0.25 seconds have gone by
 				}
 
-				if (Serial1.available() < (4 + owuShift - owuShiftSysDiag))
+				if (pgaSerial->available() < (4 + owuShift - owuShiftSysDiag))
 				{
 					// the data didn't come in - handle the problem here
 					Serial.println("ERROR - Did not receive temp/noise!");
@@ -1520,7 +1204,7 @@ double pga460::runDiagnostics(byte run, byte diag)
 				{
 					for (int n = 0; n < (4 + owuShift - owuShiftSysDiag); n++)
 					{
-						tempNoiseMeasResult[n] = Serial1.read();
+						tempNoiseMeasResult[n] = pgaSerial->read();
 					}
 
 				}
@@ -1528,41 +1212,6 @@ double pga460::runDiagnostics(byte run, byte diag)
 			elementOffset = owuShift - owuShiftSysDiag; // OWU only
 		}
 
-	}
-	else if (comm == 1) //TCI
-	{
-		if (run == true)
-		{
-			delay(10);
-			tciCommand(6); // run noise level measurement command			
-			delay(15);
-			tciCommand(1); //run preset 2 burst+listen command
-			delay(100);	// maximum record length is 65ms, so wait with margin
-
-
-			tciIndexRW(1, false); //read index1	
-			delay(10);
-
-			for (int n = 1; n < 4; n++)
-			{
-				diagMeasResult[n] = bufRecv[n - 1];
-			}
-			tempNoiseMeasResult[2] = diagMeasResult[3]; //clone temperature result to element 2			
-
-			delay(10);
-			tciCommand(5); // run temperature measurement command
-			delay(10);
-
-			tciIndexRW(0, false); //read index0
-			delay(10);
-
-			tempNoiseMeasResult[1] = bufRecv[0]; //store temp readout to element 1
-		}
-		elementOffset = 0; // no offset required fot TCI
-	}
-	else
-	{
-		//do nothing
 	}
 
 	delay(100);
@@ -1612,79 +1261,44 @@ bool pga460::burnEEPROM()
 	byte temp = 0;
 	bool burnSuccess = false;
 
-	if (comm != 1 || comm != 3)
+	// Write "0xD" to EE_UNLCK to unlock EEPROM, and '0' to EEPRGM bit at EE_CNTRL register
+	regAddr = 0x40; //EE_CNTRL
+	regData = 0x68;
+	byte buf10[5] = { syncByte, SRW, regAddr, regData, calcChecksum(SRW) };
+
+	pgaSerial->write(buf10, sizeof(buf10));
+
+
+	delay(1);
+
+	// Write "0xD" to EE_UNLCK to unlock EEPROM, and '1' to EEPRGM bit at EE_CNTRL register
+	regAddr = 0x40; //EE_CNTRL
+	regData = 0x69;
+	buf10[2] = regAddr;
+	buf10[3] = regData;
+	buf10[4] = calcChecksum(SRW);
+
+	pgaSerial->write(buf10, sizeof(buf10));
+
+	delay(1000);
+
+	// Read back EEPROM program status
+	pga460SerialFlush();
+	regAddr = 0x40; //EE_CNTRL
+	byte buf9[4] = { syncByte, SRR, regAddr, calcChecksum(SRR) };
+	pgaSerial->write(buf9, sizeof(buf9));
+
+	delay(10);
+	for (int n = 0; n < 3; n++)
 	{
-
-		// Write "0xD" to EE_UNLCK to unlock EEPROM, and '0' to EEPRGM bit at EE_CNTRL register
-		regAddr = 0x40; //EE_CNTRL
-		regData = 0x68;
-		byte buf10[5] = { syncByte, SRW, regAddr, regData, calcChecksum(SRW) };
-		if (comm == 0 || comm == 2) // UART or OWU mode
+		if (n == 1 - owuShift)
 		{
-			Serial1.write(buf10, sizeof(buf10));
+			burnStat = pgaSerial->read(); // store EE_CNTRL data
 		}
-
-
-		delay(1);
-
-		// Write "0xD" to EE_UNLCK to unlock EEPROM, and '1' to EEPRGM bit at EE_CNTRL register
-		regAddr = 0x40; //EE_CNTRL
-		regData = 0x69;
-		buf10[2] = regAddr;
-		buf10[3] = regData;
-		buf10[4] = calcChecksum(SRW);
-		if (comm == 0 || comm == 2) // UART or OWU mode
+		else
 		{
-			Serial1.write(buf10, sizeof(buf10));
+			temp = pgaSerial->read();
 		}
-
-		delay(1000);
-
-
-		// Read back EEPROM program status
-		if (comm == 2)
-		{
-			owuShift = 1; // OWU receive buffer offset to ignore transmitted data
-		}
-		pga460SerialFlush();
-		regAddr = 0x40; //EE_CNTRL
-		byte buf9[4] = { syncByte, SRR, regAddr, calcChecksum(SRR) };
-		if (comm == 0 || comm == 2) // UART or OWU mode
-		{
-			Serial1.write(buf9, sizeof(buf9));
-		}
-
-		delay(10);
-		if (comm == 0 || comm == 2) // UART or OWU mode
-		{
-			for (int n = 0; n < 3; n++)
-			{
-				if (n == 1 - owuShift)
-				{
-					burnStat = Serial1.read(); // store EE_CNTRL data
-				}
-				else
-				{
-					temp = Serial1.read();
-				}
-			}
-		}
-
-	}
-	else if (comm == 1) // TCI mode
-	{
-		EE_CNTRL = 0x68;
-		tciIndexRW(11, true); 	// write to index 11 to EE_UNLCK to unlock EEPROM, and '0' to EEPRGM bit at EE_CNTRL register
-		delay(1); 				// immediately send the same UART or TCI command with the EEPRGM bit set to '1'.
-		EE_CNTRL = 0x69;
-		tciIndexRW(11, true); 	// write to index 11 to EE_UNLCK to unlock EEPROM, and '1' to EEPRGM bit at EE_CNTRL register
-		delay(1000);
-		tciIndexRW(11, false);	// read back index 11 to review EE_PGRM_OK bit	
-		burnStat = bufRecv[0];
-	}
-	else
-	{
-		//do nothing
 	}
 
 	if ((burnStat & 0x04) == 0x04) { burnSuccess = true; } // check if EE_PGRM_OK bit is '1'
@@ -1715,7 +1329,7 @@ void pga460::broadcast(bool eeBulk, bool tvgBulk, bool thrBulk)
 		byte buf24[10] = { syncByte, BC_TVGBW, TVGAIN0, TVGAIN1, TVGAIN2, TVGAIN3, TVGAIN4, TVGAIN5, TVGAIN6, calcChecksum(BC_TVGBW) };
 		if (comm == 0 || comm == 2) // UART or OWU mode
 		{
-			Serial1.write(buf24, sizeof(buf24));
+			pgaSerial->write(buf24, sizeof(buf24));
 		}
 
 		delay(10);
@@ -1732,7 +1346,7 @@ void pga460::broadcast(bool eeBulk, bool tvgBulk, bool thrBulk)
 
 		if (comm == 0 || comm == 2) // UART or OWU mode
 		{
-			Serial1.write(buf25, sizeof(buf25));
+			pgaSerial->write(buf25, sizeof(buf25));
 		}
 
 		delay(10);
@@ -1750,7 +1364,7 @@ void pga460::broadcast(bool eeBulk, bool tvgBulk, bool thrBulk)
 
 		if (comm == 0 || comm == 2) // UART or OWU mode
 		{
-			Serial1.write(buf23, sizeof(buf23));
+			pgaSerial->write(buf23, sizeof(buf23));
 		}
 
 		delay(50);
@@ -1949,433 +1563,6 @@ byte pga460::calcChecksum(byte cmd)
 	return carry;
 }
 
-/*------------------------------------------------- tciIndexRW -----
- |  Function tciIndexRW
- |
- |  Purpose:  Read or write the TCI index command.
- |		TODO: Enable all commands to be written. Update user EEPROM variables based on index read.
- |
- |  Parameters:
- |		index (IN) -- TCI index (0-15) to read or write.
- |		wTrue (IN) -- when true, issue a TCI write command. When false, issue a TCI read command.
- |
- |  Returns: none
- *-------------------------------------------------------------------*/
-void pga460::tciIndexRW(byte index, bool wTrue)
-{
-	int dataLength = 0;		// number of bits per TCI index
-	String zeroString = "";	// string of zeros to append to the end of the binary string for the checksum calculation
-	String dataString = "";	// entire index data string with appended zeros for checksum calculation
-	byte dataLoops = 0;		// based on the number elements to be passed into the checksum calaculation after appending zeros
-	byte bufTCI[46];		// transmit TCI buffer for all index commands
-	byte data = 0xFF;		// idle-high data transmit data
-	byte zeroPadding = 0;	// byte-number of zeros to append to the end of the binary string for the checksum calculation 
-	byte bitIgnore = 0;		// number of bits to ignore at the end of the concatenated bufTCI index string
-
-	if (wTrue == true) // TCI write command
-	{
-		bufTCI[0] = 0x1F & (0x10 + index); // set first byte with write bit and index
-		switch (index)
-		{
-		case 0: dataLength = 8; break; //read only
-		case 1: dataLength = 24; break; //read only
-		case 2: zeroPadding = 3; dataLength = 8; zeroString = "000";  bitIgnore = 0;
-			bufTCI[1] = FREQUENCY;
-			break;
-		case 3: zeroPadding = 1; dataLength = 18; zeroString = "0"; bitIgnore = 0;
-			//TODO
-			break;
-		case 4: zeroPadding = 3; dataLength = 8; zeroString = "000"; bitIgnore = 0;
-			//TODO
-			break;
-		case 5: zeroPadding = 3; dataLength = 124; zeroString = "000"; bitIgnore = 4;
-			bufTCI[1] = P1_THR_0;
-			bufTCI[2] = P1_THR_1;
-			bufTCI[3] = P1_THR_2;
-			bufTCI[4] = P1_THR_3;
-			bufTCI[5] = P1_THR_4;
-			bufTCI[6] = P1_THR_5;
-			bufTCI[7] = P1_THR_6;
-			bufTCI[8] = P1_THR_7;
-			bufTCI[9] = P1_THR_8;
-			bufTCI[10] = P1_THR_9;
-			bufTCI[11] = P1_THR_10;
-			bufTCI[12] = P1_THR_11;
-			bufTCI[13] = P1_THR_12;
-			bufTCI[14] = P1_THR_13;
-			bufTCI[15] = P1_THR_14;
-			bufTCI[16] = (P1_THR_15 & 0x0F) << 4; //TH_P1_OFF only
-			break;
-		case 6: zeroPadding = 3; dataLength = 124; zeroString = "000"; bitIgnore = 4;
-			bufTCI[1] = P2_THR_0;
-			bufTCI[2] = P2_THR_1;
-			bufTCI[3] = P2_THR_2;
-			bufTCI[4] = P2_THR_3;
-			bufTCI[5] = P2_THR_4;
-			bufTCI[6] = P2_THR_5;
-			bufTCI[7] = P2_THR_6;
-			bufTCI[8] = P2_THR_7;
-			bufTCI[9] = P2_THR_8;
-			bufTCI[10] = P2_THR_9;
-			bufTCI[11] = P2_THR_10;
-			bufTCI[12] = P2_THR_11;
-			bufTCI[13] = P2_THR_12;
-			bufTCI[14] = P2_THR_13;
-			bufTCI[15] = P2_THR_14;
-			bufTCI[16] = (P2_THR_15 & 0x0F) << 4; //TH_P2_OFF only
-			break;
-		case 7: zeroPadding = 1; dataLength = 42; zeroString = "0"; bitIgnore = 0;
-			//TODO
-			break;
-		case 8: zeroPadding = 3; dataLength = 56; zeroString = "000"; bitIgnore = 0;
-			bufTCI[1] = TVGAIN0;
-			bufTCI[2] = TVGAIN1;
-			bufTCI[3] = TVGAIN2;
-			bufTCI[4] = TVGAIN3;
-			bufTCI[5] = TVGAIN4;
-			bufTCI[6] = TVGAIN5;
-			bufTCI[7] = TVGAIN6;
-			break;
-		case 9: zeroPadding = 3; dataLength = 160; zeroString = "000"; bitIgnore = 0;
-			//TODO
-			break;
-		case 10: zeroPadding = 5; dataLength = 46; zeroString = "00000"; bitIgnore = 0;
-			//TODO
-			break;
-		case 11: zeroPadding = 3; dataLength = 8; zeroString = "000"; bitIgnore = 0;
-			bufTCI[1] = EE_CNTRL;
-			break;
-		case 12: dataLength = 1024; break; //read only
-		case 13: zeroPadding = 3; zeroString = "000";  dataLength = 352; bitIgnore = 0;
-			bufTCI[1] = USER_DATA1;
-			bufTCI[2] = USER_DATA2;
-			bufTCI[3] = USER_DATA3;
-			bufTCI[4] = USER_DATA4;
-			bufTCI[5] = USER_DATA5;
-			bufTCI[6] = USER_DATA6;
-			bufTCI[7] = USER_DATA7;
-			bufTCI[8] = USER_DATA8;
-			bufTCI[9] = USER_DATA9;
-			bufTCI[10] = USER_DATA10;
-			bufTCI[11] = USER_DATA11;
-			bufTCI[12] = USER_DATA12;
-			bufTCI[13] = USER_DATA13;
-			bufTCI[14] = USER_DATA14;
-			bufTCI[15] = USER_DATA15;
-			bufTCI[16] = USER_DATA16;
-			bufTCI[17] = USER_DATA17;
-			bufTCI[18] = USER_DATA18;
-			bufTCI[19] = USER_DATA19;
-			bufTCI[20] = USER_DATA20;
-			bufTCI[21] = TVGAIN0;
-			bufTCI[22] = TVGAIN1;
-			bufTCI[23] = TVGAIN2;
-			bufTCI[24] = TVGAIN3;
-			bufTCI[25] = TVGAIN4;
-			bufTCI[26] = TVGAIN5;
-			bufTCI[27] = TVGAIN6;
-			bufTCI[28] = INIT_GAIN;
-			bufTCI[29] = FREQUENCY;
-			bufTCI[30] = DEADTIME;
-			bufTCI[31] = PULSE_P1;
-			bufTCI[32] = PULSE_P2;
-			bufTCI[33] = CURR_LIM_P1;
-			bufTCI[34] = CURR_LIM_P2;
-			bufTCI[35] = REC_LENGTH;
-			bufTCI[36] = FREQ_DIAG;
-			bufTCI[37] = SAT_FDIAG_TH;
-			bufTCI[38] = FVOLT_DEC;
-			bufTCI[39] = DECPL_TEMP;
-			bufTCI[40] = DSP_SCALE;
-			bufTCI[41] = TEMP_TRIM;
-			bufTCI[42] = P1_GAIN_CTRL;
-			bufTCI[43] = P2_GAIN_CTRL;
-			bufTCI[44] = EE_CRC;
-			break;
-		case 14: break; //read only (reserved)
-		case 15: dataLength = 16; break; //read only						
-		default: return;
-		}
-
-		// calculate checksum	
-			// convert byte to binary string	
-		dataLoops = ((dataLength + ((zeroPadding + bitIgnore) - 3)) / 8) + 1;
-
-		String tempString = "";
-		for (int i = 0; i < dataLoops; i++)
-		{
-			tempString = String((int)bufTCI[i], BIN);
-			while (tempString.length() < 8)
-			{
-				tempString = "0" + tempString;	// add leading zero to get 8 bit BIN representaiton
-			}
-			dataString.concat(tempString);
-		}
-		dataString = dataString.substring(3); // truncate leading zeros
-		dataString.concat(zeroString); // append zero padding to binary string
-
-	// convert binary string to bytes for checksum calculation
-		String parsed = "";
-		byte value = 0;
-		for (int k = 0; k < dataLoops; k++)
-		{
-			parsed = dataString.substring(k * 8, (k * 8) + 8);
-			char s[9];
-			parsed.toCharArray(s, 9);
-			for (int i = 0; i < strlen(s); i++)  // for every character in the string  strlen(s) returns the length of a char array
-			{
-				value *= 2; // double the result so far
-				if (s[i] == '1') value++;  //add 1 if needed
-			}
-			bufTCI[k] = value;
-		}
-
-		// generate TCI checksum
-		uint16_t carry = 0;
-		for (int i = 0; i < dataLoops; i++)
-		{
-			if ((bufTCI[i] + carry) < carry)
-			{
-				carry = carry + bufTCI[i] + 1;
-			}
-			else
-			{
-				carry = carry + bufTCI[i];
-			}
-
-			if (carry > 0xFF)
-			{
-				carry = carry - 255;
-			}
-		}
-		carry = (~carry & 0x00FF);
-
-		// send CFG_TCI low pulse of 1.27ms
-		tciCommand(4);
-
-		// transmit r/w , index, and data bits. 
-		for (int m = 0; m < dataLoops - 1; m++)
-		{
-			data = bufTCI[m];
-			pga460::tciByteToggle(data, 0); // send bits 7..0			
-		}
-
-		// send last byte without zero padding
-		data = bufTCI[dataLoops - 1];
-		{
-			data = data >> (zeroPadding + bitIgnore);
-			pga460::tciByteToggle(data, (zeroPadding + bitIgnore));
-		}
-
-		// send checksum
-		data = (byte)carry;
-		pga460::tciByteToggle(data, 0);
-	}
-
-	else // TCI read command
-	{
-		int recvLength = 0; 	// number of bits to expect for the index to be read
-		bool recvState = 0xFF;	// receive state initiated to idle high
-		bool lastState = 0xFF;	// last state read initiated to idle high
-		int element = 0;		// bufRecv byte element to save bit capture to
-		int bitCount = 0;		// number of bits read to auto increment bufRecv element after 8 hits
-
-		switch (index)
-		{
-		case 0: recvLength = 8; break;
-		case 1: recvLength = 24; break;
-		case 2: recvLength = 8; break;
-		case 3: recvLength = 18; break;
-		case 4: recvLength = 8; break;
-		case 5: recvLength = 124; break;
-		case 6: recvLength = 124; break;
-		case 7: recvLength = 42; break;
-		case 8: recvLength = 56; break;
-		case 9: recvLength = 160; break;
-		case 10: recvLength = 46; break;
-		case 11: recvLength = 8; break;
-		case 12: recvLength = 1024; break;
-		case 13: recvLength = 352; break;
-		case 14: recvLength = 0; break;
-		case 15: recvLength = 16; break;
-		default: return;
-		}
-
-		memset(bufRecv, 0xFF, sizeof(bufRecv)); // idle-high receive buffer data
-		starttime = millis();
-
-		// send CFG_TCI low pulse of 1.27ms
-		tciCommand(4);
-		data = 0x1F & (0x00 + index);
-		pga460::tciByteToggle(data, 3);
-		delayMicroseconds(100); //TCI deadtime	 
-
-		// capture first response toggle by sampling center of 300us TCI bit indicate 0 or 1
-		delayMicroseconds(150);
-		lastState = digitalRead(TCI_RX);
-		bitWrite(bufRecv[element], 7 - bitCount, digitalRead(TCI_RX));
-		bitCount++;
-
-		while ((millis() - starttime) < 500) // timeout after 0.5 seconds
-		{
-			recvState = digitalRead(TCI_RX);
-			if (((recvState != lastState) && (recvState == 0))) // check for high-to-low toggle
-			{
-				// sample center of 300us TCI bit indicate 0 or 1
-				delayMicroseconds(150);
-				bitWrite(bufRecv[element], 7 - bitCount, digitalRead(TCI_RX));
-				bitCount++;
-				if (bitCount == 8)
-				{
-					bitCount = 0;
-					element++;
-				}
-			}
-			lastState = recvState;
-			delayMicroseconds(10); // master defined deglitcher timeout
-		}
-	}
-	return;
-}
-
-/*------------------------------------------------- tciByteToggle -----
- |  Function tciByteToggle
- |
- |  Purpose:  Toggle the TCI_TX pin based on the bit data of the byte data passed in.
- |		A bit value of '1' toggles TCI_TX low for 100us, then holds it high for 200us.
- |		A bit value of '0' toggles TCI_TX low for 200us, then holds it high for 100us.
- |
- |  Parameters:
- |		data (IN) -- byte value to bit parse.
- |		zeroPadding (IN) -- bit toggle based on the number of zeros padded. Zero padding is for checksum calculation only.
- |
- |  Returns: none
- *-------------------------------------------------------------------*/
-void pga460::tciByteToggle(byte data, byte zeroPadding)
-{
-	byte mask = 0x80;
-	int numBits = 8;
-	switch (zeroPadding)
-	{
-	case 0: mask = 0x80; numBits = 8; break;
-	case 1: mask = 0x40; numBits = 7; break;
-	case 2: mask = 0x20; numBits = 6; break;
-	case 3: mask = 0x10; numBits = 5; break;
-	case 4: mask = 0x08; numBits = 4; break;
-	case 5: mask = 0x04; numBits = 3; break;
-	case 6: mask = 0x02; numBits = 2; break;
-	case 7: mask = 0x01; numBits = 1; break;
-	default: return;
-	}
-
-	for (int n = 0; n < numBits; n++)
-	{
-		// set line low for 100us if bit is 1, low for 200us if bit is 0
-		if (data & mask) // consider leftmost bit (MSB out first)
-		{
-			digitalWrite(TCI_TX, LOW);
-			delayMicroseconds(100);
-			digitalWrite(TCI_TX, HIGH);
-			delayMicroseconds(200);
-		}
-		else
-		{
-			digitalWrite(TCI_TX, LOW);
-			delayMicroseconds(200);
-			digitalWrite(TCI_TX, HIGH);
-			delayMicroseconds(100);
-		}
-		data <<= 1; // shift byte left so next bit will be leftmost
-	}
-	return;
-}
-
-/*------------------------------------------------- tciRecord -----
- |  Function tciRecord
- |
- |  Purpose:  Record TCI_RX toggle burst and/or low activity to time stamp high-to-low transitions representing
-		time-of-flight measurements. The time-of-flight is captures in microseconds, and saved to the ultrasonic
-		measurement results array to later convert time-of-flight to distance in meters.
- |
- |  Parameters:
- |		data (IN) -- byte value to bit parse.
- |		numObj (IN) -- number of objects/toggles to monitor the TCI_RX line for (limited to 8 for this library)
- |
- |  Returns: none
- *-------------------------------------------------------------------*/
-void pga460::tciRecord(byte numObj)
-{
-	bool recvState = 0;
-	bool lastState = 0;
-	tciToggle = micros();
-	byte objCount = 0;
-	starttime = millis();
-	delayMicroseconds(300); //wait until after STAT bits are toggled by PGA460
-
-	while (((millis() - starttime) < 100) && (objCount < numObj)) // timeout after 100ms, or after set number of objects are registered
-	{
-		recvState = digitalRead(TCI_RX);
-		if (((recvState != lastState) && (recvState == 0))) // check for high-to-low toggle of TCI_RX line
-		{
-			objTime[objCount] = (int)(micros() - tciToggle); // capture time-of-flight
-			objCount++;
-		}
-		lastState = recvState;
-		delayMicroseconds(10); // master implemented deglitcher //8cm resolution due to micros timer
-	}
-
-	if (objCount == (numObj - 1)) // if number of objects fills before timer expires
-	{
-		delay(100 - (millis() - starttime)); //wait a total time of 100ms regardless
-	}
-
-	// save each TCI time-of-flight to ultrasonic measurement results array (16 bit parsed into two 8 byte elements)
-	for (int i = 0; i < objCount; i++)
-	{
-		ultraMeasResult[(i * 4) + 1] = (objTime[i] >> 8) & 0x00FF; // MSB
-		ultraMeasResult[(i * 4) + 2] = 0x00FF; //LSB
-	}
-}
-
-/*------------------------------------------------- tciCommand -----
- |  Function tciCommand
- |
- |  Purpose:  Toggle TCI_TX low for micro second duration based on nominal requirement of TCI command.
- |
- |  Parameters:
- |		cmd (IN) -- which TCI command to issue
- |			• 0 = BURST/LISTEN (Preset1)
- |			• 1 = BURST/LISTEN (Preset2)
- |			• 2 = LISTEN only (Preset1)
- |			• 3 = LISTEN only (Preset2)
- |			• 4 = Device configuration
- |			• 5 = Temperature measurement
- |			• 6 = Noise level
- |
- |  Returns: none
- *-------------------------------------------------------------------*/
-void pga460::tciCommand(byte cmd)
-{
-	digitalWrite(TCI_TX, LOW);
-
-	switch (cmd)
-	{
-	case 0: delayMicroseconds(400); break; //send P1BL_TCI low pulse
-	case 1: delayMicroseconds(1010); break; //send P2BL_TCI low pulse
-	case 2: delayMicroseconds(780); break; //send P1LO_TCI low pulse
-	case 3: delayMicroseconds(580); break; //send P2LO_TCI low pulse
-	case 4: delayMicroseconds(1270); break; //send CFG_TCI low pulse
-	case 5: delayMicroseconds(1550); break; //send TEMP_TCI low pulse
-	case 6: delayMicroseconds(2200); break; //send NOISE_TCI low pulse
-	default: break;
-	}
-
-	digitalWrite(TCI_TX, HIGH);
-	delayMicroseconds(100); //TCI deadtime
-}
-
-
-
 /*------------------------------------------------- pga460SerialFlush -----
  |  Function pga460SerialFlush
  |
@@ -2388,12 +1575,12 @@ void pga460::tciCommand(byte cmd)
  *-------------------------------------------------------------------*/
 void pga460::pga460SerialFlush()
 {
-	delay(10);
-	Serial1.flush();
-	while ((Serial1.available() > 0))// || (Serial1.read() < 0xFF)) 
+	delay(5);
+	pgaSerial->flush();
+	/*while ((pgaSerial -> available() > 0))// || (pgaSerial -> read() < 0xFF))
 	{
-		char temp = Serial1.read();
-		//Serial1.flush();
+		char temp = pgaSerial -> read();
+		//pgaSerial -> flush();
 	}
 
 	//redundant clear
@@ -2405,43 +1592,12 @@ void pga460::pga460SerialFlush()
 			delay(1);
 		}
 		delay(1);
-	}
+	}*/
 
-	Serial1.flush();
+	pgaSerial->flush();
 	return;
 }
 
-
-
-/*------------------------------------------------- triangulation -----
- |  Function triangulation
- |
- |  Purpose:  Uses the law of cosines to compute the position of the
- |			targeted object from transceiver S1.
- |
- |  Parameters:
- |		distanceA (IN) -- distance (m) from sensor module 1 (S1) to the targeted object based on UMR result
- |		distanceB (IN) -- distance (m) between sensor module 1 (S1) and sensor module 2 (S2)
- |		distanceC (IN) -- distance (m) from sensor module 2 (S2) to the targeted object based on UMR result
- |
- |  Returns:  angle (degrees) from transceiver element S1 to the targeted object
- *-------------------------------------------------------------------*/
-double pga460::triangulation(double a, double b, double c)
-{
-	// LAW OF COSINES
-	double inAngle;
-	if (a + b > c)
-	{
-		return inAngle = (acos(((a*a) + (b*b) - (c*c)) / (2 * a*b))) * 57.3; //Radian to Degree = Rad * (180/PI)
-	}
-	else
-	{
-		return 360;
-	}
-
-	// COORDINATE
-	// TODO
-}
 
 /*------------------------------------------------- registerRead -----
  |  Function registerRead
@@ -2471,11 +1627,9 @@ byte pga460::registerRead(byte addr)
 
 	regAddr = addr;
 	byte buf9[4] = { syncByte, SRR, regAddr, calcChecksum(SRR) };
-	//Serial.print("Checksum: ");
-	//Serial.println(buf9[3]);
 	if (comm == 0 || comm == 2) // UART or OWU mode
 	{
-		Serial1.write(buf9, sizeof(buf9));
+		pgaSerial->write(buf9, sizeof(buf9));
 	}
 
 	delay(10);
@@ -2485,18 +1639,18 @@ byte pga460::registerRead(byte addr)
 		{
 			if (n == 1 - owuShift)
 			{
-				data = Serial1.read(); // store read data
+				data = pgaSerial->read(); // store read data
 				delay(1);
-				Serial.print(data);
-				Serial.print(" ");
+				
 			}
 			else
 			{
-				temp = Serial1.read();
+				temp = pgaSerial->read();
 				delay(1);
 			}
 		}
 	}
+	Serial.print(data); Serial.print(" ");
 	return data;
 }
 
@@ -2518,7 +1672,7 @@ byte pga460::registerWrite(byte addr, byte data)
 	byte buf10[5] = { syncByte, SRW, regAddr, regData, calcChecksum(SRW) };
 	if (comm == 0 || comm == 2) // UART or OWU mode
 	{
-		Serial1.write(buf10, sizeof(buf10));
+		pgaSerial->write(buf10, sizeof(buf10));
 	}
 
 	delay(10);
@@ -3002,23 +2156,15 @@ void pga460::thresholdBulkRead(byte preset)
 		}
 		//Serial.println();
 
-		// Threshold Bulk Read Command 15 too large for Serial1 receive buffer
-		/*Serial1.write(buf15, sizeof(buf15));
+		// Threshold Bulk Read Command 15 too large for pgaSerial receive buffer
+		/*pgaSerial -> write(buf15, sizeof(buf15));
 		delay (300);
-		while (Serial1.available() > 0)
+		while (pgaSerial -> available() > 0)
 		{
-			bulkThr[n] = Serial1.read();
+			bulkThr[n] = pgaSerial -> read();
 			n++;
 		}*/
 
-		break;
-
-	case 1: //TCI
-		//TODO
-		break;
-
-	case 3: //SPI
-		//TODO
 		break;
 
 	default:
@@ -3040,35 +2186,16 @@ void pga460::thresholdBulkRead(byte preset)
 void pga460::thresholdBulkWrite(byte *p1ThrMap, byte *p2ThrMap)
 {
 	//bulk write new threshold values
-	if ((comm == 0 || comm == 2 || comm == 3) && (comm != 6)) 	// USART or OWU mode and not busDemo6
-	{
-		byte buf16[35] = { syncByte,	THRBW, p1ThrMap[0], p1ThrMap[1], p1ThrMap[2], p1ThrMap[3], p1ThrMap[4], p1ThrMap[5],
-			p1ThrMap[6], p1ThrMap[7], p1ThrMap[8], p1ThrMap[9], p1ThrMap[10], p1ThrMap[11], p1ThrMap[12],
-			p1ThrMap[13], p1ThrMap[14], p1ThrMap[15],
-			p2ThrMap[0], p2ThrMap[1], p2ThrMap[2], p2ThrMap[3], p2ThrMap[4], p2ThrMap[5],
-			p2ThrMap[6], p2ThrMap[7], p2ThrMap[8], p2ThrMap[9], p2ThrMap[10], p2ThrMap[11], p2ThrMap[12],
-			p2ThrMap[13], p2ThrMap[14], p2ThrMap[15],
-			calcChecksum(THRBW) };
-		if (comm == 0 || comm == 2) // UART or OWU mode
-		{
-			Serial1.write(buf16, sizeof(buf16)); // serial transmit master data for bulk threhsold
-		}
 
+	byte buf16[35] = { syncByte,	THRBW, p1ThrMap[0], p1ThrMap[1], p1ThrMap[2], p1ThrMap[3], p1ThrMap[4], p1ThrMap[5],
+		p1ThrMap[6], p1ThrMap[7], p1ThrMap[8], p1ThrMap[9], p1ThrMap[10], p1ThrMap[11], p1ThrMap[12],
+		p1ThrMap[13], p1ThrMap[14], p1ThrMap[15],
+		p2ThrMap[0], p2ThrMap[1], p2ThrMap[2], p2ThrMap[3], p2ThrMap[4], p2ThrMap[5],
+		p2ThrMap[6], p2ThrMap[7], p2ThrMap[8], p2ThrMap[9], p2ThrMap[10], p2ThrMap[11], p2ThrMap[12],
+		p2ThrMap[13], p2ThrMap[14], p2ThrMap[15],
+		calcChecksum(THRBW) };
 
-	}
-	else if (comm == 6)
-	{
-		return;
-	}
-	else if (comm == 1) // TCI mode
-	{
-		tciIndexRW(5, true); //TCI Threshold Preset 1 write
-		tciIndexRW(6, true); //TCI Threshold Preset 2 write
-	}
-	else
-	{
-		//do nothing
-	}
+	pgaSerial->write(buf16, sizeof(buf16)); // serial transmit master data for bulk threhsold
 
 	delay(100);
 	return;
@@ -3145,3 +2272,5 @@ void pga460::eepromThreshold(byte preset, bool saveLoad)
  |  Returns:  IF THIS FUNCTION SENDS BACK A VALUE VIA THE RETURN
  |      MECHANISM, DESCRIBE THE PURPOSE OF THAT VALUE HERE.
  *-------------------------------------------------------------------*/
+
+
