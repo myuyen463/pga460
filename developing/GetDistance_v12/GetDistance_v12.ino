@@ -84,7 +84,7 @@ void setup() {                // put your setup code here, to run once
   ussc1.registerRead(0x22); Serial.print(" "); ussc2.registerRead(0x22); Serial.println();
   Serial.print("THR_CRC_ERR: ");
   ussc1.registerRead(0x4C); Serial.print(" "); ussc2.registerRead(0x4C); Serial.println();
-  //timer = millis();
+  timer = millis();
 }
 
 /*------------------------------------------------- initPGA460 -----
@@ -322,7 +322,7 @@ void initPGA460() {
   }
 
   // -+-+-+-+-+-+-+-+-+-+-  others   -+-+-+-+-+-+-+-+-+-+- //
-  commandDelay = 100; //10 * cdMultiplier;                   // command cycle delay result in ms
+  commandDelay = 5; //10 * cdMultiplier;                   // command cycle delay result in ms
   if (numOfObj == 0 || numOfObj > 8) {
     numOfObj = 1;  // sets number of objects to detect to 1 if invalid input
   }
@@ -357,16 +357,12 @@ void initPGA460() {
   -------------------------------------------------------------------*/
 
 void loop() {
-  //Serial.println("B+L");
   for (uint8_t i = 0; i < sizeof(usscArr); i++) {
-    usscArr[i].ultrasonicCmd(1, numOfObj);  // run preset 1 (short distance) burst+listen for 1 object
-    delay(commandDelay);
-  }
-  //Serial.println("Finish B+L");
-  delay(commandDelay);
+    usscArr[i].ultrasonicCmd(0, numOfObj);  // run preset 1 (short distance) burst+listen for 1 object
 
-  for (uint8_t i = 0; i < sizeof(usscArr); i++) {
-    //bool objectDetected = false;                       // Initialize object detected flag to false
+    delay(commandDelay);
+
+
     usscArr[i].pullUltrasonicMeasResult(demoMode);      // Pull Ultrasonic Measurement Result
 
     // Log uUltrasonic Measurement Result: Obj1: 0=Distance(m), 1=Width, 2=Amplitude; Obj2: 3=Distance(m), 4=Width, 5=Amplitude; etc.;
@@ -376,10 +372,10 @@ void loop() {
     delay(commandDelay);
 
 
-    Serial.print("USSC "); Serial.print(i+1);
+    Serial.print("USSC "); Serial.print(i + 1);
     if (distance > minDistLim && distance < 11.2)  // turn on DS1_LED if object is above minDistLim
     {
-      Serial.print(" P2 Distance (m): "); Serial.println(distance);
+      Serial.print(" P1 Distance (m): "); Serial.print(distance); Serial.print(" ");
       //objectDetected = true;
     }
     else {
@@ -388,7 +384,13 @@ void loop() {
     Serial.flush();
   }
 
-  //Serial.println("Finish printing");
+  counter++;
+  if(millis() - timer > 1000){
+    Serial.println(counter);
+    counter = 1;
+    timer = millis();
+  }
+  Serial.println();
 }
 
 

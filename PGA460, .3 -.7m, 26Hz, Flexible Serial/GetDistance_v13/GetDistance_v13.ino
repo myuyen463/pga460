@@ -69,7 +69,7 @@ String interruptString = "";  // a string to hold incoming data
 boolean stringComplete = false; // whether the string is complete
 
 // PGA460_USSC library class
-pga460 ussc(&Serial1);
+pga460 ussc(&Serial2);
 
 //pga460 usscArr[3] = {ussc, ussc1, ussc2];
 
@@ -379,7 +379,8 @@ void getDistance(pga460 ussc) {
 
     if (distance > minDistLim && distance < 11.2)  // turn on DS1_LED if object is above minDistLim
     {
-      Serial.print("P1 Distance (m): "); Serial.println(distance);
+      Serial.print("P1 Distance (m): "); 
+      Serial.println(distance);
       objectDetected = true;
     }
   }
@@ -400,7 +401,8 @@ void getDistance(pga460 ussc) {
       if (distance > minDistLim && distance < 11.2)    // turn on DS1_LED and F_DIAG_LED if object is within 1m
       {
 
-        Serial.print("P2 Distance (m): "); Serial.println(distance);
+        Serial.print("P2 Distance (m): "); 
+        Serial.println(distance);
         objectDetected = true;
       }
       /*else if (distance < 3 && distance >= 1)      // turn on DS1_LED and F_DIAG_LED if object is within 3m
