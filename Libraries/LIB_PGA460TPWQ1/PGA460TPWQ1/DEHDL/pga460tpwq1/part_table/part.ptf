@@ -1,0 +1,11 @@
+FILE_TYPE = MULTI_PHYS_TABLE;
+
+PART 'PGA460TPWQ1'
+CLASS = IC
+{========================================================================================}
+:"MANUFACTURER_NAME", "MANUFACTURER_PART_NUMBER"= "PART_NUMBER", "JEDEC_TYPE", "PACK_TYPE", "MOUSER_PART_NUMBER", "MOUSER_PRICE/STOCK", "RS_PART_NUMBER", "RS_PRICE/STOCK", "DESCRIPTION", "DATASHEET", "HEIGHT";
+{========================================================================================}
+ "Texas Instruments", "PGA460TPWQ1" (!) = "", "SOP65P640X120-16N", "Small Outline Packages", "595-PGA460TPWQ1", "https://www.mouser.com/Search/Refine.aspx?Keyword=595-PGA460TPWQ1", "", "", "Analog Front End - AFE Automotive Ultrasonic Signal Processor & Transducer Driver 16-TSSOP -40 to 105", "http://www.ti.com/lit/gpn/pga460", "1.2 mm"
+END_PART
+
+END.

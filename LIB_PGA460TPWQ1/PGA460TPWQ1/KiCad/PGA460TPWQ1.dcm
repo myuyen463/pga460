@@ -1,9 +1,0 @@
-EESchema-DOCLIB  Version 2.0
-#
-$CMP PGA460TPWQ1
-D Analog Front End - AFE Automotive Ultrasonic Signal Processor & Transducer Driver 16-TSSOP -40 to 105
-K
-F http://www.ti.com/lit/gpn/pga460
-$ENDCMP
-#
-#End Doc Library
