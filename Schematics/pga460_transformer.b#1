@@ -202,6 +202,52 @@
 </package>
 </packages>
 </library>
+<library name="diode" urn="urn:adsk.eagle:library:210">
+<description>&lt;b&gt;Diodes&lt;/b&gt;&lt;p&gt;
+Based on the following sources:
+&lt;ul&gt;
+&lt;li&gt;Motorola : www.onsemi.com
+&lt;li&gt;Fairchild : www.fairchildsemi.com
+&lt;li&gt;Philips : www.semiconductors.com
+&lt;li&gt;Vishay : www.vishay.de
+&lt;/ul&gt;
+&lt;author&gt;Created by librarian@cadsoft.de&lt;/author&gt;</description>
+<packages>
+<package name="DO41-10" urn="urn:adsk.eagle:footprint:43094/1" library_version="7">
+<description>&lt;B&gt;DIODE&lt;/B&gt;&lt;p&gt;
+diameter 2.54 mm, horizontal, grid 10.16 mm</description>
+<wire x1="2.032" y1="-1.27" x2="-2.032" y2="-1.27" width="0.1524" layer="21"/>
+<wire x1="2.032" y1="-1.27" x2="2.032" y2="1.27" width="0.1524" layer="21"/>
+<wire x1="-2.032" y1="1.27" x2="2.032" y2="1.27" width="0.1524" layer="21"/>
+<wire x1="-2.032" y1="1.27" x2="-2.032" y2="-1.27" width="0.1524" layer="21"/>
+<wire x1="5.08" y1="0" x2="4.064" y2="0" width="0.762" layer="51"/>
+<wire x1="-5.08" y1="0" x2="-4.064" y2="0" width="0.762" layer="51"/>
+<wire x1="-0.635" y1="0" x2="0" y2="0" width="0.1524" layer="21"/>
+<wire x1="1.016" y1="0.635" x2="1.016" y2="-0.635" width="0.1524" layer="21"/>
+<wire x1="1.016" y1="-0.635" x2="0" y2="0" width="0.1524" layer="21"/>
+<wire x1="0" y1="0" x2="1.524" y2="0" width="0.1524" layer="21"/>
+<wire x1="0" y1="0" x2="1.016" y2="0.635" width="0.1524" layer="21"/>
+<wire x1="0" y1="0.635" x2="0" y2="0" width="0.1524" layer="21"/>
+<wire x1="0" y1="0" x2="0" y2="-0.635" width="0.1524" layer="21"/>
+<pad name="A" x="5.08" y="0" drill="1.1176"/>
+<pad name="C" x="-5.08" y="0" drill="1.1176"/>
+<text x="-2.032" y="1.651" size="1.27" layer="25" ratio="10">&gt;NAME</text>
+<text x="-2.032" y="-2.794" size="1.27" layer="27" ratio="10">&gt;VALUE</text>
+<rectangle x1="-1.651" y1="-1.27" x2="-1.143" y2="1.27" layer="21"/>
+<rectangle x1="2.032" y1="-0.381" x2="3.937" y2="0.381" layer="21"/>
+<rectangle x1="-3.937" y1="-0.381" x2="-2.032" y2="0.381" layer="21"/>
+</package>
+</packages>
+<packages3d>
+<package3d name="DO41-10" urn="urn:adsk.eagle:package:43336/1" type="box" library_version="7">
+<description>DIODE
+diameter 2.54 mm, horizontal, grid 10.16 mm</description>
+<packageinstances>
+<packageinstance name="DO41-10"/>
+</packageinstances>
+</package3d>
+</packages3d>
+</library>
 <library name="adafruit">
 <packages>
 <package name="C0805">
@@ -338,28 +384,6 @@ You are welcome to use this library for commercial purposes. For attribution, we
 <rectangle x1="-0.254" y1="-0.254" x2="0.254" y2="0.254" layer="51"/>
 <text x="-1.27" y="1.397" size="0.6096" layer="25" font="vector" ratio="20">&gt;NAME</text>
 <text x="-1.27" y="-2.032" size="0.6096" layer="27" font="vector" ratio="20">&gt;VALUE</text>
-</package>
-</packages>
-</library>
-<library name="casovac">
-<packages>
-<package name="SMA">
-<wire x1="-2.2225" y1="0.635" x2="2.2225" y2="0.635" width="0.127" layer="51"/>
-<wire x1="-2.2225" y1="-0.635" x2="2.2225" y2="-0.635" width="0.127" layer="51"/>
-<wire x1="0.3175" y1="0" x2="-0.3175" y2="0.4763" width="0.127" layer="21"/>
-<wire x1="-0.3175" y1="0.4763" x2="-0.3175" y2="0" width="0.127" layer="21"/>
-<wire x1="-0.3175" y1="0" x2="-0.3175" y2="-0.4763" width="0.127" layer="21"/>
-<wire x1="-0.3175" y1="-0.4763" x2="0.3175" y2="0" width="0.127" layer="21"/>
-<wire x1="0.3175" y1="0" x2="0.3175" y2="0.4763" width="0.127" layer="21"/>
-<wire x1="0.3175" y1="0" x2="0.3175" y2="-0.4763" width="0.127" layer="21"/>
-<wire x1="-0.3175" y1="0" x2="-1.1113" y2="0" width="0.127" layer="21"/>
-<wire x1="0.3175" y1="0" x2="1.1113" y2="0" width="0.127" layer="21"/>
-<smd name="A" x="-2.05" y="0" dx="1.8" dy="1.7" layer="1"/>
-<smd name="K" x="2.05" y="0" dx="1.8" dy="1.7" layer="1"/>
-<text x="-3.175" y="1.5875" size="1.27" layer="25">&gt;NAME</text>
-<text x="-3.175" y="-2.8575" size="1.27" layer="27">&gt;VALUE</text>
-<rectangle x1="-2.3813" y1="-0.635" x2="-1.5875" y2="0.635" layer="51"/>
-<rectangle x1="1.5875" y1="-0.635" x2="2.3813" y2="0.635" layer="51"/>
 </package>
 </packages>
 </library>
@@ -568,11 +592,15 @@ design rules under a new name.</description>
 <attribute name="RS_PRICE-STOCK" value="" x="-7.62" y="-16.51" size="1.778" layer="27" display="off"/>
 <attribute name="VALUE" x="-7.62" y="-16.51" size="1.27" layer="27" align="center"/>
 </element>
-<element name="C1" library="adafruit" package="C0805" value="0.1uF" x="-12.7" y="-29.21" smashed="yes">
+<element name="D1" library="diode" library_urn="urn:adsk.eagle:library:210" package="DO41-10" package3d_urn="urn:adsk.eagle:package:43336/1" value="1N4004" x="-7.62" y="-22.86" smashed="yes">
+<attribute name="NAME" x="-9.652" y="-21.209" size="1.27" layer="25" ratio="10"/>
+<attribute name="VALUE" x="-9.652" y="-25.654" size="1.27" layer="27" ratio="10"/>
+</element>
+<element name="C1" library="adafruit" package="C0805" value="" x="-12.7" y="-29.21" smashed="yes">
 <attribute name="NAME" x="-13.589" y="-28.194" size="1.27" layer="25"/>
 <attribute name="VALUE" x="-13.589" y="-31.496" size="1.27" layer="27"/>
 </element>
-<element name="C3" library="adafruit" package="C0805" value="0.1uF" x="-12.7" y="-39.37" smashed="yes">
+<element name="C3" library="adafruit" package="C0805" value="" x="-12.7" y="-39.37" smashed="yes">
 <attribute name="NAME" x="-13.589" y="-38.354" size="1.27" layer="25"/>
 <attribute name="VALUE" x="-13.589" y="-41.656" size="1.27" layer="27"/>
 </element>
@@ -588,19 +616,19 @@ design rules under a new name.</description>
 <attribute name="NAME" x="-13.589" y="-53.594" size="1.27" layer="25"/>
 <attribute name="VALUE" x="-13.589" y="-56.896" size="1.27" layer="27"/>
 </element>
-<element name="R1" library="adafruit" package="R0805" value="100" x="-12.7" y="-59.69" smashed="yes">
+<element name="R1" library="adafruit" package="R0805" value="" x="-12.7" y="-59.69" smashed="yes">
 <attribute name="NAME" x="-13.462" y="-58.674" size="1.27" layer="25"/>
 <attribute name="VALUE" x="-13.462" y="-61.976" size="1.27" layer="27"/>
 </element>
-<element name="R2" library="adafruit" package="R0805" value="10k" x="-12.7" y="-64.77" smashed="yes">
+<element name="R2" library="adafruit" package="R0805" value="" x="-12.7" y="-64.77" smashed="yes">
 <attribute name="NAME" x="-13.462" y="-63.754" size="1.27" layer="25"/>
 <attribute name="VALUE" x="-13.462" y="-67.056" size="1.27" layer="27"/>
 </element>
-<element name="R3" library="adafruit" package="R0805" value="10k" x="-12.7" y="-69.85" smashed="yes">
+<element name="R3" library="adafruit" package="R0805" value="" x="-12.7" y="-69.85" smashed="yes">
 <attribute name="NAME" x="-13.462" y="-68.834" size="1.27" layer="25"/>
 <attribute name="VALUE" x="-13.462" y="-72.136" size="1.27" layer="27"/>
 </element>
-<element name="R4" library="adafruit" package="R0805" value="10k" x="-12.7" y="-74.93" smashed="yes">
+<element name="R4" library="adafruit" package="R0805" value="" x="-12.7" y="-74.93" smashed="yes">
 <attribute name="NAME" x="-13.462" y="-73.914" size="1.27" layer="25"/>
 <attribute name="VALUE" x="-13.462" y="-77.216" size="1.27" layer="27"/>
 </element>
@@ -620,13 +648,9 @@ design rules under a new name.</description>
 <attribute name="NAME" x="-13.97" y="-91.313" size="0.6096" layer="25" font="vector" ratio="20"/>
 <attribute name="VALUE" x="-13.97" y="-94.742" size="0.6096" layer="27" font="vector" ratio="20"/>
 </element>
-<element name="C2" library="adafruit" package="C0805" value="0.1 uF" x="-12.7" y="-97.79" smashed="yes">
+<element name="C2" library="adafruit" package="C0805" value="" x="-12.7" y="-97.79" smashed="yes">
 <attribute name="NAME" x="-13.589" y="-96.774" size="1.27" layer="25"/>
 <attribute name="VALUE" x="-13.589" y="-100.076" size="1.27" layer="27"/>
-</element>
-<element name="D1" library="casovac" package="SMA" value="1N4007" x="-10.16" y="-102.87" smashed="yes">
-<attribute name="NAME" x="-13.335" y="-101.2825" size="1.27" layer="25"/>
-<attribute name="VALUE" x="-13.335" y="-105.7275" size="1.27" layer="27"/>
 </element>
 </elements>
 <signals>
@@ -655,9 +679,7 @@ design rules under a new name.</description>
 <contactref element="IC1" pad="6"/>
 <contactref element="C1" pad="1"/>
 <contactref element="R4" pad="1"/>
-<contactref element="J1" pad="4"/>
-<wire x1="-5.08" y1="-88.9" x2="-13.55" y2="-97.79" width="0" layer="19" extent="1-1"/>
-<wire x1="-13.7" y1="-74.93" x2="-5.08" y2="-88.9" width="0" layer="19" extent="1-1"/>
+<wire x1="-13.7" y1="-74.93" x2="-13.55" y2="-97.79" width="0" layer="19" extent="1-1"/>
 <wire x1="-13.55" y1="-39.37" x2="-13.7" y2="-74.93" width="0" layer="19" extent="1-1"/>
 <wire x1="-13.55" y1="-29.21" x2="-13.55" y2="-39.37" width="0" layer="19" extent="1-1"/>
 <wire x1="-10.495" y1="-17.485" x2="-13.55" y2="-29.21" width="0" layer="19" extent="1-1"/>
@@ -665,15 +687,13 @@ design rules under a new name.</description>
 <wire x1="-10.495" y1="-14.235" x2="-10.495" y2="-16.185" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="N$4">
+<contactref element="D1" pad="C"/>
 <contactref element="R1" pad="1"/>
-<contactref element="D1" pad="K"/>
-<wire x1="-13.7" y1="-59.69" x2="-8.11" y2="-102.87" width="0" layer="19" extent="1-1"/>
+<wire x1="-12.7" y1="-22.86" x2="-13.7" y2="-59.69" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="TXD">
 <contactref element="R3" pad="2"/>
 <contactref element="IC1" pad="10"/>
-<contactref element="J1" pad="2"/>
-<wire x1="-11.7" y1="-69.85" x2="-10.16" y2="-88.9" width="0" layer="19" extent="1-1"/>
 <wire x1="-4.745" y1="-18.135" x2="-11.7" y2="-69.85" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="N$6">
@@ -684,14 +704,13 @@ design rules under a new name.</description>
 <signal name="5V">
 <contactref element="R3" pad="1"/>
 <contactref element="R2" pad="1"/>
-<contactref element="J1" pad="3"/>
-<wire x1="-13.7" y1="-69.85" x2="-7.62" y2="-88.9" width="0" layer="19" extent="1-1"/>
 <wire x1="-13.7" y1="-64.77" x2="-13.7" y2="-69.85" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="RXD">
 <contactref element="IC1" pad="11"/>
-<contactref element="J1" pad="1"/>
-<wire x1="-4.745" y1="-17.485" x2="-12.7" y2="-88.9" width="0" layer="19" extent="1-1"/>
+</signal>
+<signal name="VPWR">
+<contactref element="D1" pad="A"/>
 </signal>
 <signal name="N$5">
 <contactref element="IC1" pad="12"/>
@@ -710,11 +729,6 @@ design rules under a new name.</description>
 <signal name="OUTB">
 <contactref element="IC1" pad="7"/>
 </signal>
-<signal name="VPWR">
-<contactref element="D1" pad="A"/>
-<contactref element="J1" pad="5"/>
-<wire x1="-2.54" y1="-88.9" x2="-12.21" y2="-102.87" width="0" layer="19" extent="1-1"/>
-</signal>
 </signals>
 <mfgpreviewcolors>
 <mfgpreviewcolor name="soldermaskcolor" color="0xC8008000"/>
@@ -725,4 +739,21 @@ design rules under a new name.</description>
 </mfgpreviewcolors>
 </board>
 </drawing>
+<compatibility>
+<note version="8.2" severity="warning">
+Since Version 8.2, EAGLE supports online libraries. The ids
+of those online libraries will not be understood (or retained)
+with this version.
+</note>
+<note version="8.3" severity="warning">
+Since Version 8.3, EAGLE supports URNs for individual library
+assets (packages, symbols, and devices). The URNs of those assets
+will not be understood (or retained) with this version.
+</note>
+<note version="8.3" severity="warning">
+Since Version 8.3, EAGLE supports the association of 3D packages
+with devices in libraries, schematics, and board files. Those 3D
+packages will not be understood (or retained) with this version.
+</note>
+</compatibility>
 </eagle>
