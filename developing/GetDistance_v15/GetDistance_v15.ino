@@ -1,4 +1,4 @@
-+/*------------------------------------------------- GetDistance -----
+/*------------------------------------------------- GetDistance -----
   PROJECT:     PGA460 UART, TCI, OWU, & SPI Ultrasonic Time-of-Flight
   DESCRIPTION: Transmits and receives ultrasonic echo data to measure
               time-of-flight distance, width, and/or amplitude.
@@ -9,12 +9,16 @@
   NOTES:       This example code is in the public domain.
   -------------------------------------------------------------------*/
 #include <PGA460_USSC.h>
+#include <SPI.h>
+#include <mcp_can.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <pthread.h>
+#include <string.h>
 
 
+
+#define SS 53
+byte len = 0;
 /*------------------------------------------------- run mode -----
   |  userInputMode
   |
@@ -43,7 +47,7 @@
 
 // Configuration variables
 byte commMode = 0;            // Communication mode: 0=UART, 1=TCI, 2=OneWireUART
-byte fixedThr = 4;            // set P1 and P2 thresholds to 0=%25, 1=50%, or 2=75% of max; initial minDistLim (i.e. 20cm) ignored
+byte fixedThr = 4;           // set P1 and P2 thresholds to 0=%25, 1=50%, or 2=75% of max; initial minDistLim (i.e. 20cm) ignore
 byte xdcr = 0;                // set PGA460 to recommended settings for 0=Murata MA58MF14-7N, 1=Murata MA40H1S-R
 byte agrTVG = 1;              // set TVG's analog front end gain range to 0=32-64dB, 1=46-78dB, 2=52-84dB, or 3=58-90dB
 byte fixedTVG = 1;            // set fixed TVG level at 0=%25, 1=50%, or 1=75% of max
@@ -64,17 +68,15 @@ uint8_t counter = 1;
 
 
 // Result variables
+uint16_t distance = 0;          // one-way object distance in meters
 double diagnostics = 0;       // diagnostic selector
 byte echoDataDumpElement = 0; // echo data dump element 0 to 127
 String interruptString = "";  // a string to hold incoming data
 boolean stringComplete = false; // whether the string is complete
 
 // PGA460_USSC library class
-pga460 ussc1(&Serial1);
-pga460 ussc2(&Serial2);
-
-pga460 usscArr[2] = {ussc1, ussc2};
-
+pga460 ussc(&Serial1);
+MCP_CAN CAN(SS);
 
 /*------------------------------------------------- setup -----
   |  function Setup
@@ -82,12 +84,23 @@ pga460 usscArr[2] = {ussc1, ussc2};
   |  Purpose: (see funciton initPGA460 for details)
   -------------------------------------------------------------------*/
 void setup() {                // put your setup code here, to run once
-  initPGA460();
+  initPGA460(ussc);
+  //initPGA460(ussc1);
   delay(1000);
+  Serial.print("UART_DIAG: ");
+  ussc.registerRead(0x1E);
   Serial.print("REC_LENGTH: ");
-  ussc1.registerRead(0x22); Serial.print(" "); ussc2.registerRead(0x22); Serial.println();
+  ussc.registerRead(0x22); //Serial.print(" "); ussc1.registerRead(0x22);
   Serial.print("THR_CRC_ERR: ");
-  ussc1.registerRead(0x4C); Serial.print(" "); ussc2.registerRead(0x4C); Serial.println();
+  ussc.registerRead(0x4C); //Serial.print(" "); ussc1.registerRead(0x22);
+  Serial.println();
+
+  while (CAN_OK != CAN.begin(CAN_500KBPS))
+  {
+    Serial.println("CAN BUS init Failed");
+    delay(100);
+  }
+  Serial.println("CAN BUS Shield Init OK!");
   timer = millis();
 }
 
@@ -113,7 +126,7 @@ void setup() {                // put your setup code here, to run once
   |   variables in the globals section for the device to
   |   auto-configure in the background.
   -------------------------------------------------------------------*/
-void initPGA460() {
+void initPGA460(pga460 ussc) {
 
 #ifdef userInputMode
   int inByte = 0;         // incoming serial byte
@@ -233,7 +246,7 @@ void initPGA460() {
     }
     else if (inByte == 113 - 48) //  'q'
     {
-      initPGA();
+      initPGA460(ussc); // restart initializaiton routine
     }
     else //   's'
     {
@@ -261,76 +274,67 @@ void initPGA460() {
 
     if the input is 'x' (72d), then skip that configuration
     -------------------------------------------------------------------*/
-
-  for (uint8_t i = 0 ; i < sizeof(usscArr); i++) {
-
-    // -+-+-+-+-+-+-+-+-+-+- 1 : interface setup   -+-+-+-+-+-+-+-+-+-+- //
-
-    usscArr[i].initBoostXLPGA460(commMode, baudRate, uartAddrUpdate);
+  // -+-+-+-+-+-+-+-+-+-+- 1 : interface setup   -+-+-+-+-+-+-+-+-+-+- //
+  ussc.initBoostXLPGA460(commMode, baudRate, uartAddrUpdate);
+  /*for(uint8_t i = 0; i < sizeof(usscArr); i++){
 
 
-    // -+-+-+-+-+-+-+-+-+-+- 2 : bulk threshold write   -+-+-+-+-+-+-+-+-+-+- //
-    if (fixedThr != 72) {
-      usscArr[i].initThresholds(fixedThr);
-    }
-    // -+-+-+-+-+-+-+-+-+-+- 3 : bulk user EEPROM write   -+-+-+-+-+-+-+-+-+-+- //
-    if (xdcr != 72) {
-      usscArr[i].defaultPGA460(xdcr);
-    }
-    // -+-+-+-+-+-+-+-+-+-+- 4 : bulk TVG write   -+-+-+-+-+-+-+-+-+-+- //
-    if (agrTVG != 72 && fixedTVG != 72) {
-      usscArr[i].initTVG(agrTVG, fixedTVG);
-    }
-    // -+-+-+-+-+-+-+-+-+-+- 5 : run system diagnostics   -+-+-+-+-+-+-+-+-+-+- //
+  */
+  // -+-+-+-+-+-+-+-+-+-+- 2 : bulk threshold write   -+-+-+-+-+-+-+-+-+-+- //
+  if (fixedThr != 72) {
+    ussc.initThresholds(fixedThr);
   }
-
-  for (uint8_t i = 0 ; i < sizeof(usscArr); i++) {
-    Serial.println("Start diag");
-    if (runDiag == 1)
-    {
-      diagnostics = usscArr[i].runDiagnostics(1, 0);      // run and capture system diagnostics, and print freq diag result
-      Serial.print("System Diagnostics - Frequency (kHz): "); Serial.println(diagnostics);
-      diagnostics = usscArr[i].runDiagnostics(0, 1);      // do not re-run system diagnostic, but print decay diag result
-      Serial.print("System Diagnostics - Decay Period (us): "); Serial.println(diagnostics);
-      diagnostics = usscArr[i].runDiagnostics(0, 2);      // do not re-run system diagnostic, but print temperature measurement
-      Serial.print("System Diagnostics - Die Temperature (C): "); Serial.println(diagnostics);
-      diagnostics = usscArr[i].runDiagnostics(0, 3);      // do not re-run system diagnostic, but print noise level measurement
-      Serial.print("System Diagnostics - Noise Level: "); Serial.println(diagnostics);
-
-    }
-    // -+-+-+-+-+-+-+-+-+-+- 6 : burn EEPROM   -+-+-+-+-+-+-+-+-+-+- //
-    if (burn == 1)
-    {
-      byte burnStat = usscArr[i].burnEEPROM();
-      if (burnStat == true) {
-        Serial.println("EEPROM programmed successfully.");
-      }
-      else {
-        Serial.println("EEPROM program failed.");
-      }
-    }
-    // -+-+-+-+-+-+-+-+-+-+- 7 : capture echo data dump   -+-+-+-+-+-+-+-+-+-+- //
-    if (edd != 0)                                   // run or skip echo data dump
-    {
-      Serial.println("Retrieving echo data dump profile. Wait...");
-      usscArr[i].runEchoDataDump(edd - 1);                // run preset 1 or 2 burst and/or listen command
-      for (int n = 0; n < 128; n++)                 // get all echo data dump results
-      {
-        echoDataDumpElement = usscArr[i].pullEchoDataDump(n);
-        Serial.print(echoDataDumpElement);
-        Serial.print(",");
-      }
-      Serial.println("");
-    }
-    Serial.println("Finish diag");
+  // -+-+-+-+-+-+-+-+-+-+- 3 : bulk user EEPROM write   -+-+-+-+-+-+-+-+-+-+- //
+  if (xdcr != 72) {
+    ussc.defaultPGA460(xdcr);
   }
+  // -+-+-+-+-+-+-+-+-+-+- 4 : bulk TVG write   -+-+-+-+-+-+-+-+-+-+- //
+  if (agrTVG != 72 && fixedTVG != 72) {
+    ussc.initTVG(agrTVG, fixedTVG);
+  }
+  // -+-+-+-+-+-+-+-+-+-+- 5 : run system diagnostics   -+-+-+-+-+-+-+-+-+-+- //
 
+  if (runDiag == 1)
+  {
+    diagnostics = ussc.runDiagnostics(1, 0);      // run and capture system diagnostics, and print freq diag result
+    Serial.print("System Diagnostics - Frequency (kHz): "); Serial.println(diagnostics);
+    diagnostics = ussc.runDiagnostics(0, 1);      // do not re-run system diagnostic, but print decay diag result
+    Serial.print("System Diagnostics - Decay Period (us): "); Serial.println(diagnostics);
+    diagnostics = ussc.runDiagnostics(0, 2);      // do not re-run system diagnostic, but print temperature measurement
+    Serial.print("System Diagnostics - Die Temperature (C): "); Serial.println(diagnostics);
+    diagnostics = ussc.runDiagnostics(0, 3);      // do not re-run system diagnostic, but print noise level measurement
+    Serial.print("System Diagnostics - Noise Level: "); Serial.println(diagnostics);
+
+  }
+  // -+-+-+-+-+-+-+-+-+-+- 6 : burn EEPROM   -+-+-+-+-+-+-+-+-+-+- //
+  if (burn == 1)
+  {
+    byte burnStat = ussc.burnEEPROM();
+    if (burnStat == true) {
+      Serial.println("EEPROM programmed successfully.");
+    }
+    else {
+      Serial.println("EEPROM program failed.");
+    }
+  }
+  // -+-+-+-+-+-+-+-+-+-+- 7 : capture echo data dump   -+-+-+-+-+-+-+-+-+-+- //
+  if (edd != 0)                                   // run or skip echo data dump
+  {
+    Serial.println("Retrieving echo data dump profile. Wait...");
+    ussc.runEchoDataDump(edd - 1);                // run preset 1 or 2 burst and/or listen command
+    for (int n = 0; n < 128; n++)                 // get all echo data dump results
+    {
+      echoDataDumpElement = ussc.pullEchoDataDump(n);
+      Serial.print(echoDataDumpElement);
+      Serial.print(",");
+    }
+    Serial.println("");
+  }
   // -+-+-+-+-+-+-+-+-+-+-  others   -+-+-+-+-+-+-+-+-+-+- //
-  commandDelay = 5; //10 * cdMultiplier;                   // command cycle delay result in ms
+  commandDelay = 50; //10 * cdMultiplier;                   // command cycle delay result in ms
   if (numOfObj == 0 || numOfObj > 8) {
     numOfObj = 1;  // sets number of objects to detect to 1 if invalid input
   }
-
 
 }
 
@@ -360,57 +364,20 @@ void initPGA460() {
   |
   -------------------------------------------------------------------*/
 
-void loop() {
-  for (uint8_t i = 0; i < sizeof(usscArr); i++) {
-    usscArr[i].ultrasonicCmd(0, numOfObj);  // run preset 1 (short distance) burst+listen for 1 object
- 
-    delay(commandDelay);
-
-    usscArr[i].pullUltrasonicMeasResult(demoMode);      // Pull Ultrasonic Measurement Result
-
-    // Log uUltrasonic Measurement Result: Obj1: 0=Distance(m), 1=Width, 2=Amplitude; Obj2: 3=Distance(m), 4=Width, 5=Amplitude; etc.;
-    double distance = usscArr[i].printUltrasonicMeasResult(0);
-    //width = ussc.printUltrasonicMeasResult(1+(c*3));
-    //peak = ussc.printUltrasonicMeasResult(2+(c*3));
-    delay(commandDelay);
-
-
-    Serial.print("USSC "); Serial.print(i + 1);
-    if (distance > minDistLim && distance < 11.2)  // turn on DS1_LED if object is above minDistLim
-    {
-      Serial.print(distance); Serial.print(" ");
-      //objectDetected = true;
-    }
-    else {
-      Serial.println(" 0...");
-    }
-    Serial.flush();
-  }
-
-  counter++;
-  if(millis() - timer > 1000){
-    Serial.println(counter);
-    counter = 1;
-    timer = millis();
-  }
-  Serial.println();
+void loop() {                 // put your main code here, to run repeatedly
+  Serial.println(getDistance(ussc));
 }
 
-
-/*void getDistance(pga460 ussc) {
+uint16_t getDistance(pga460 ussc) {
   // -+-+-+-+-+-+-+-+-+-+-  PRESET 1 (SHORT RANGE) MEASUREMENT   -+-+-+-+-+-+-+-+-+-+- //
   bool objectDetected = false;                       // Initialize object detected flag to false
   ussc.ultrasonicCmd(0, numOfObj);              // run preset 1 (short distance) burst+listen for 1 object
   ussc.pullUltrasonicMeasResult(demoMode);      // Pull Ultrasonic Measurement Result
-  /*counter++;
-    if (millis() - timer > 1000) {
-    Serial.println(counter);
-    counter = 1;
-    timer = millis();
-    }
+
   for (byte i = 0; i < numOfObj; i++)
   {
     // Log uUltrasonic Measurement Result: Obj1: 0=Distance(m), 1=Width, 2=Amplitude; Obj2: 3=Distance(m), 4=Width, 5=Amplitude; etc.;
+
     distance = ussc.printUltrasonicMeasResult(0 + (i * 3));
     //width = ussc.printUltrasonicMeasResult(1+(i*3));
     //peak = ussc.printUltrasonicMeasResult(2+(i*3));
@@ -419,7 +386,6 @@ void loop() {
 
     if (distance > minDistLim && distance < 11.2)  // turn on DS1_LED if object is above minDistLim
     {
-      Serial.print("P1 Distance (m): "); Serial.println(distance);
       objectDetected = true;
     }
   }
@@ -432,45 +398,26 @@ void loop() {
     for (byte i = 0; i < numOfObj; i++)
     {
       distance = ussc.printUltrasonicMeasResult(0 + (i * 3)); // Print Ultrasonic Measurement Result i.e. Obj1: 0=Distance(m), 1=Width, 2=Amplitude; Obj2: 3=Distance(m), 4=Width, 5=Amplitude;
-      //width = ussc.printUltrasonicMeasResult(1+(i*3));
-      //peak = ussc.printUltrasonicMeasResult(2+(i*3));
-
       delay(commandDelay);
 
       if (distance > minDistLim && distance < 11.2)    // turn on DS1_LED and F_DIAG_LED if object is within 1m
       {
-
-        Serial.print("P2 Distance (m): "); Serial.println(distance);
         objectDetected = true;
-      }
-      /*else if (distance < 3 && distance >= 1)      // turn on DS1_LED and F_DIAG_LED if object is within 3m
-        {
-
-        Serial.print("P2 Obj"); Serial.print(i + 1); Serial.print(" Distance (m): "); Serial.println(distance);
-        objectDetected = true;
-        }
-        else if (distance >= 3 && distance < 11.2)     // turn on DS1_LED, F_DIAG_LED, and V_DIAG_LED if object is greater than 3m
-        {
-
-        Serial.print("P2 Obj"); Serial.print(i + 1); Serial.print(" Distance (m): "); Serial.println(distance);
-        objectDetected = true;
-        }
-        else if (distance == 0)                         // turn off all LEDs if no object detected
-        {
-
-        //Serial.print("Error reading measurement results..."); //Serial.println(distance);
-        }
-      else //(distance > 11.2 && distance < minDistLim)         // turn off all LEDs if no object detected or below minimum distance limit
-      {
-        /*if (i == numOfObj - 1 && objectDetected == false)
-          {
-
-        Serial.println("0...");
-        //}
       }
     }
   }
-  }*/
+  if (objectDetected == false)
+  {
+    distance = 0;
+  }
+
+  uint8_t size = log10(distance)+1;
+  byte buf[size] = {};
+  itoa(distance, buf, 16);
+
+  CAN.sendMsgBuf(0x43,0, size, buf);
+  return distance;
+}
 // -+-+-+-+-+-+-+-+-+-+-  SERIAL MONITORING   -+-+-+-+-+-+-+-+-+-+- //
 /*
   SerialEvent occurs whenever a new data comes in the hardware serial RX. This
@@ -484,8 +431,7 @@ void serialEvent() {
     // if the incoming character is a 'q', set a flag, stop the main loop, and re-run initialization
     if (inChar == 'q') {
       stringComplete = true;
-      initPGA460();
-
+      initPGA460(ussc);
     }
 
     // if the incoming character is a 'p', set a flag, pause the loop, and resume loop upon receiving another 'p' character
@@ -505,7 +451,7 @@ void serialEvent() {
           if (inChar == 'q')
           {
             stringComplete = true;
-            initPGA460();
+            initPGA460(ussc);
           }
           delay(1000);
         }
