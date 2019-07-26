@@ -27,11 +27,8 @@ void setup()
 
 }
 
-
-
 void loop()
 {
-  Serial.println("In loop");
   CAN.sendMsgBuf(0x43, 0, 3, buf);
   delay(1000);
 }
