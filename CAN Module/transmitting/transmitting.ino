@@ -8,7 +8,7 @@
 #define SS 53
 
 uint8_t distance = 653;
-byte buf[8] = {};
+unsigned char buf[8] = {};
 
 
 MCP_CAN CAN(SS);
@@ -24,11 +24,14 @@ void setup()
   }
   Serial.println("CAN BUS Shield Init OK!");
   itoa(distance, buf, 16);
+  for(int i = 0; i<8; i++){
+    Serial.print(buf[i]); Serial.print(" ");
+  }
 
 }
 
 void loop()
 {
-  CAN.sendMsgBuf(0x43, 0, 3, buf);
+  CAN.sendMsgBuf(0x43, 0, 8, buf);
   delay(1000);
 }
