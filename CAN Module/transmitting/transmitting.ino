@@ -5,7 +5,7 @@
 
 #define SS 53
 
-int distance = 256;
+int distance;
 byte buf[8] = {0};
 
 
@@ -21,22 +21,16 @@ void setup()
     delay(100);
   }
   Serial.println("CAN BUS Shield Init OK!");
-  buf[0] = highByte(distance);
-  buf[1] = lowByte(distance);
-  Serial.print("DEC value: ");
-  for(int i = 0; i<8; i++){
-    Serial.print(buf[i]); Serial.print(" ");
-  }
-  unsigned int word = buf[0] * 256 + buf[1];
-  Serial.print(word);
-  
-
-  
-
+  delay(1000);
 }
 
 void loop()
 {
-  CAN.sendMsgBuf(0x43, 0, 8, buf);
-  delay(1000);
+  memset(buf,0, sizeof(buf));
+  distance = random(1,1000); 
+  Serial.println(distance); 
+  buf[0] = highByte(distance);
+  buf[1] = lowByte(distance);
+  CAN.sendMsgBuf(0x43, 0, strlen(buf), buf);
+  delay(50);
 }
