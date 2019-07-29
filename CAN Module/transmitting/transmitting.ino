@@ -2,13 +2,11 @@
 #include <mcp_can.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-#define numPGAs 2
 #define SS 53
 
-uint8_t distance = 653;
-unsigned char buf[8] = {};
+int distance = 256;
+byte buf[8] = {0};
 
 
 MCP_CAN CAN(SS);
@@ -23,10 +21,17 @@ void setup()
     delay(100);
   }
   Serial.println("CAN BUS Shield Init OK!");
-  itoa(distance, buf, 16);
+  buf[0] = highByte(distance);
+  buf[1] = lowByte(distance);
+  Serial.print("DEC value: ");
   for(int i = 0; i<8; i++){
     Serial.print(buf[i]); Serial.print(" ");
   }
+  unsigned int word = buf[0] * 256 + buf[1];
+  Serial.print(word);
+  
+
+  
 
 }
 
