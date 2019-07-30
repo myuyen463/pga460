@@ -1,63 +1,83 @@
 #include <SPI.h>
-#include <mcp_can.h>
-#include <stdio.h>
-#include <stdlib.h>
+#include <mcp2515.h>
 
-#define SS 53
-
-int distance[4] = {0};
-byte buf[8] = {0};
+struct can_frame canMsg1;
+//struct can_frame canMsg2;
+MCP2515 mcp2515(53);
 int counter = 1;
 unsigned long timer;
 
+void setup() {
+  canMsg1.can_id  = 0x0F6;
+  canMsg1.can_dlc = 8;
+  canMsg1.data[0] = 0x00;
+  canMsg1.data[1] = 0x00;
+  canMsg1.data[2] = 0x00;
+  canMsg1.data[3] = 0x00;
+  canMsg1.data[4] = 0x00;
+  canMsg1.data[5] = 0x00;
+  canMsg1.data[6] = 0x00;
+  canMsg1.data[7] = 0x00;
 
-MCP_CAN CAN(SS);
+  /*canMsg2.can_id  = 0x036;
+    canMsg2.can_dlc = 8;
+    canMsg2.data[0] = 0x0E;
+    canMsg2.data[1] = 0x00;
+    canMsg2.data[2] = 0x00;
+    canMsg2.data[3] = 0x08;
+    canMsg2.data[4] = 0x01;
+    canMsg2.data[5] = 0x00;
+    canMsg2.data[6] = 0x00;
+    canMsg2.data[7] = 0xA0;*/
 
-void setup()
-{
+  while (!Serial);
   Serial.begin(19200);
-  while (CAN_OK != CAN.begin(CAN_500KBPS,MCP_8MHz))
-  {
-    Serial.println("CAN BUS init Failed");
-    delay(100);
-  }
-  Serial.println("CAN BUS Shield Init OK!");
-  delay(1000);
+  SPI.begin();
+
+  mcp2515.reset();
+  mcp2515.setBitrate(CAN_500KBPS, MCP_8MHZ);
+  mcp2515.setNormalMode();
+
+  Serial.println("Example: Write to CAN");
   timer = millis();
 }
 
-void loop()
-{
-  memset(buf,0, sizeof(buf));
-  for(int i = 0; i<4; i++){
-    distance[i] = random(1,1000);
-    Serial.print(distance[i]); Serial.print("\t");
-    switch(i){
+void loop() {
+
+  for (int i = 0; i < 4; i++) {
+    int distance = random(1, 1000);
+    Serial.print(distance); Serial.print("\t");
+    switch (i) {
       case 0:
-        buf[0] = highByte(distance[i]);
-        buf[1] = lowByte(distance[i]);
+        canMsg1.data[0] = highByte(distance);
+        canMsg1.data[1] = lowByte(distance);
         break;
       case 1:
-        buf[2] = highByte(distance[i]);
-        buf[3] = lowByte(distance[i]);  
+        canMsg1.data[2] = highByte(distance);
+        canMsg1.data[3] = lowByte(distance);
         break;
       case 2:
-        buf[4] = highByte(distance[i]);
-        buf[5] = lowByte(distance[i]);
+        canMsg1.data[4] = highByte(distance);
+        canMsg1.data[5] = lowByte(distance);
         break;
       case 3:
-        buf[6] = highByte(distance[i]);
-        buf[7] = lowByte(distance[i]);
+        canMsg1.data[6] = highByte(distance);
+        canMsg1.data[7] = lowByte(distance);
         break;
     }
   }
+  /*for (int i = 0; i < 8; i++) {
+    Serial.print(canMsg1.data[i]); Serial.print("\t");
+  }*/
   counter++;
-  if(millis()-timer >1000){
+  if(millis() - timer >1000){
     Serial.print(counter);
     counter = 1;
     timer = millis();
   }
   Serial.println();
-  CAN.sendMsgBuf(0x23, 0, strlen(buf), buf);
-  delay(50);
+
+  mcp2515.sendMessage(&canMsg1);
+  //mcp2515.sendMessage(&canMsg2);
+  //delay(50);
 }
