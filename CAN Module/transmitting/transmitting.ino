@@ -16,7 +16,7 @@ MCP_CAN CAN(SS);
 void setup()
 {
   Serial.begin(19200);
-  while (CAN_OK != CAN.begin(CAN_500KBPS))
+  while (CAN_OK != CAN.begin(CAN_500KBPS,MCP_8MHz))
   {
     Serial.println("CAN BUS init Failed");
     delay(100);
