@@ -46,38 +46,42 @@ void loop() {
 
   for (int i = 0; i < 4; i++) {
     int distance = random(1, 1000);
-    Serial.print(distance); Serial.print("\t");
     switch (i) {
       case 0:
         canMsg1.data[0] = highByte(distance);
         canMsg1.data[1] = lowByte(distance);
+        Serial.print(distance); Serial.print("\t");
         break;
       case 1:
         canMsg1.data[2] = highByte(distance);
         canMsg1.data[3] = lowByte(distance);
+        Serial.print(distance); Serial.print("\t");
         break;
       case 2:
         canMsg1.data[4] = highByte(distance);
         canMsg1.data[5] = lowByte(distance);
+        Serial.print(distance); Serial.print("\t");
         break;
       case 3:
-        canMsg1.data[6] = highByte(distance);
-        canMsg1.data[7] = lowByte(distance);
+        counter++;
+        canMsg1.data[6] = highByte(counter);
+        canMsg1.data[7] = lowByte(counter);
+        Serial.print(counter);
         break;
     }
   }
   /*for (int i = 0; i < 8; i++) {
     Serial.print(canMsg1.data[i]); Serial.print("\t");
   }*/
-  counter++;
+  /*counter++;
   if(millis() - timer >1000){
     Serial.print(counter);
     counter = 1;
     timer = millis();
-  }
+  }*/
   Serial.println();
 
   mcp2515.sendMessage(&canMsg1);
   //mcp2515.sendMessage(&canMsg2);
-  //delay(50);
+  delay(10);
 }
