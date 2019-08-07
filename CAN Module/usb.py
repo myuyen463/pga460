@@ -1,6 +1,7 @@
 import serial
 
-arduino = serial.Serial('/dev/ttyUSB0',19200, timeout=.1)
+#Serial(name of port, baud rate, timeout)
+arduino = serial.Serial('/dev/ttyUSB0',19200, timeout=.1)	
 arduino.flushInput()
 while True:
   try:
