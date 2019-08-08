@@ -39,13 +39,13 @@
 
 // Configuration variables
 byte commMode = 0;            // Communication mode: 0=UART, 1=TCI, 2=OneWireUART
-byte fixedThr =4;            // set P1 and P2 thresholds to 0=%25, 1=50%, or 2=75% of max; initial minDistLim (i.e. 20cm) ignore
+byte fixedThr = 4;            // set P1 and P2 thresholds to 0=%25, 1=50%, or 2=75% of max; initial minDistLim (i.e. 20cm) ignore
 byte xdcr = 0;                // set PGA460 to recommended settings for 0=Murata MA58MF14-7N, 1=Murata MA40H1S-R
-byte agrTVG = 1;              // set TVG's analog front end gain range to 0=32-64dB, 1=46-78dB, 2=52-84dB, or 3=58-90dB
-byte fixedTVG = 1;            // set fixed TVG level at 0=%25, 1=50%, or 1=75% of max
+byte agrTVG = 2;              // set TVG's analog front end gain range to 0=32-64dB, 1=46-78dB, 2=52-84dB, or 3=58-90dB
+byte fixedTVG = 2;            // set fixed TVG level at 0=%25, 1=50%, or 1=75% of max
 byte runDiag = 1;            // run system diagnostics and temp/noise level before looping burst+listen command
 byte edd = 1;                 // echo data dump of preset 1, 2, or neither
-byte burn = 0;                // trigger EE_CNTRL to burn and program user EEPROM memory
+byte burn = 1;                // trigger EE_CNTRL to burn and program user EEPROM memory
 byte cdMultiplier = 1;        // multiplier for command cycle delay
 byte numOfObj = 1;            // number of object to detect set to 1-8
 byte uartAddrUpdate = 0;      // PGA460 UART address to interface to; default is 0, possible address 0-7
@@ -56,7 +56,7 @@ double minDistLim = 0;      // minimum distance as limited by ringing decay of s
 uint16_t commandDelay = 0;    // Delay between each P1 and Preset 2 command
 uint32_t baudRate = 19200;     // UART baud rate: 9600, 19200, 38400, 57600, 74800, 115200
 unsigned long timer;
-uint8_t counter = 1;
+uint8_t counter = 0;
 
 
 // Result variables
@@ -320,11 +320,10 @@ void initPGA460(pga460 ussc) {
     Serial.println("");
   }
   // -+-+-+-+-+-+-+-+-+-+-  others   -+-+-+-+-+-+-+-+-+-+- //
-  commandDelay = 50; //10 * cdMultiplier;                   // command cycle delay result in ms
+  commandDelay = 1; //10 * cdMultiplier;                   // command cycle delay result in ms
   if (numOfObj == 0 || numOfObj > 8) {
     numOfObj = 1;  // sets number of objects to detect to 1 if invalid input
   }
-
 }
 
 /*------------------------------------------------- main loop -----
@@ -360,80 +359,81 @@ void loop() {                 // put your main code here, to run repeatedly
 void getDistance(pga460 ussc) {
   // -+-+-+-+-+-+-+-+-+-+-  PRESET 1 (SHORT RANGE) MEASUREMENT   -+-+-+-+-+-+-+-+-+-+- //
   bool objectDetected = false;                       // Initialize object detected flag to false
-  ussc.ultrasonicCmd(0, numOfObj);              // run preset 1 (short distance) burst+listen for 1 object
-  ussc.pullUltrasonicMeasResult(demoMode);      // Pull Ultrasonic Measurement Result
-  //counter++;
-  /*if(millis() - timer > 1000){
-    Serial.println(counter);
-    counter = 1;
-    timer = millis();
-    }*/
-  for (byte i = 0; i < numOfObj; i++)
-  {
+  /*ussc.ultrasonicCmd(0, numOfObj);              // run preset 1 (short distance) burst+listen for 1 object
+    ussc.pullUltrasonicMeasResult(demoMode);      // Pull Ultrasonic Measurement Result
+    //counter++;
+
+    for (byte i = 0; i < numOfObj; i++)
+    {
     // Log uUltrasonic Measurement Result: Obj1: 0=Distance(m), 1=Width, 2=Amplitude; Obj2: 3=Distance(m), 4=Width, 5=Amplitude; etc.;
 
     distance = ussc.printUltrasonicMeasResult(0 + (i * 3));
     //width = ussc.printUltrasonicMeasResult(1+(i*3));
     //peak = ussc.printUltrasonicMeasResult(2+(i*3));
-
+    //Serial.print(distance); Serial.print ("\t");
     delay(commandDelay);
 
     if (distance > minDistLim && distance < 11.2)  // turn on DS1_LED if object is above minDistLim
     {
-      Serial.print("P1 Distance (m): "); 
+      Serial.print("P1 Distance (m): ");
       Serial.println(distance);
       objectDetected = true;
     }
-  }
+    }*/
 
   // -+-+-+-+-+-+-+-+-+-+-  PRESET 2 (LONG RANGE) MEASUREMENT   -+-+-+-+-+-+-+-+-+-+- //
-  if (objectDetected == false || alwaysLong == true)                      // If no preset 1 (short distance) measurement result, switch to Preset 2 B+L command
+
+  ussc.ultrasonicCmd(1, numOfObj);               // run preset 2 (long distance) burst+listen for 1 object
+  ussc.pullUltrasonicMeasResult(demoMode);                // Get Ultrasonic Measurement Result
+  for (byte i = 0; i < numOfObj; i++)
   {
-    ussc.ultrasonicCmd(1, numOfObj);               // run preset 2 (long distance) burst+listen for 1 object
-    ussc.pullUltrasonicMeasResult(demoMode);                // Get Ultrasonic Measurement Result
-    for (byte i = 0; i < numOfObj; i++)
+    distance = ussc.printUltrasonicMeasResult(0 + (i * 3)); // Print Ultrasonic Measurement Result i.e. Obj1: 0=Distance(m), 1=Width, 2=Amplitude; Obj2: 3=Distance(m), 4=Width, 5=Amplitude;
+    //width = ussc.printUltrasonicMeasResult(1+(i*3));
+    //peak = ussc.printUltrasonicMeasResult(2+(i*3));
+
+    delay(commandDelay);
+
+    if (distance > minDistLim && distance < 11.2)    // turn on DS1_LED and F_DIAG_LED if object is within 1m
     {
-      distance = ussc.printUltrasonicMeasResult(0 + (i * 3)); // Print Ultrasonic Measurement Result i.e. Obj1: 0=Distance(m), 1=Width, 2=Amplitude; Obj2: 3=Distance(m), 4=Width, 5=Amplitude;
-      //width = ussc.printUltrasonicMeasResult(1+(i*3));
-      //peak = ussc.printUltrasonicMeasResult(2+(i*3));
 
-      delay(commandDelay);
-
-      if (distance > minDistLim && distance < 11.2)    // turn on DS1_LED and F_DIAG_LED if object is within 1m
+      //Serial.print("P2 Distance (m): ");
+      Serial.println(distance);
+      objectDetected = true;
+    }
+    /*else if (distance < 3 && distance >= 1)      // turn on DS1_LED and F_DIAG_LED if object is within 3m
       {
 
-        Serial.print("P2 Distance (m): "); 
-        Serial.println(distance);
-        objectDetected = true;
+      Serial.print("P2 Obj"); Serial.print(i + 1); Serial.print(" Distance (m): "); Serial.println(distance);
+      objectDetected = true;
       }
-      /*else if (distance < 3 && distance >= 1)      // turn on DS1_LED and F_DIAG_LED if object is within 3m
-        {
-
-        Serial.print("P2 Obj"); Serial.print(i + 1); Serial.print(" Distance (m): "); Serial.println(distance);
-        objectDetected = true;
-        }
-        else if (distance >= 3 && distance < 11.2)     // turn on DS1_LED, F_DIAG_LED, and V_DIAG_LED if object is greater than 3m
-        {
-
-        Serial.print("P2 Obj"); Serial.print(i + 1); Serial.print(" Distance (m): "); Serial.println(distance);
-        objectDetected = true;
-        }
-        else if (distance == 0)                         // turn off all LEDs if no object detected
-        {
-
-        //Serial.print("Error reading measurement results..."); //Serial.println(distance);
-        }*/
-      else //(distance > 11.2 && distance < minDistLim)         // turn off all LEDs if no object detected or below minimum distance limit
+      else if (distance >= 3 && distance < 11.2)     // turn on DS1_LED, F_DIAG_LED, and V_DIAG_LED if object is greater than 3m
       {
-        /*if (i == numOfObj - 1 && objectDetected == false)
-          {*/
 
-        Serial.println("0...");
-        //}
+      Serial.print("P2 Obj"); Serial.print(i + 1); Serial.print(" Distance (m): "); Serial.println(distance);
+      objectDetected = true;
       }
+      else if (distance == 0)                         // turn off all LEDs if no object detected
+      {
+
+      //Serial.print("Error reading measurement results..."); //Serial.println(distance);
+      }*/
+    else //(distance > 11.2 && distance < minDistLim)         // turn off all LEDs if no object detected or below minimum distance limit
+    {
+      //if (i == numOfObj - 1 && objectDetected == false)
+
+
+        Serial.println();
     }
   }
+  /*counter++;
+  if (millis() - timer > 1000) {
+    Serial.print("FPS:");
+    Serial.println(counter);
+    counter = 0;
+    timer = millis();
+  }*/
 }
+
 // -+-+-+-+-+-+-+-+-+-+-  SERIAL MONITORING   -+-+-+-+-+-+-+-+-+-+- //
 /*
   SerialEvent occurs whenever a new data comes in the hardware serial RX. This
