@@ -118,7 +118,7 @@ byte UMRData[35]; //holds Ultrasonic measurement data i.e. data,width,amplitude
 
 
 byte numObj = 1;
-byte numSerial = 2;
+byte numSerial = 3;
 
 uint8_t counter = 0;
 unsigned long timer;
@@ -243,6 +243,7 @@ void initThreshold()
   Serial1.write(THBUFF, sizeof(THBUFF)); // serial transmit master data for bulk threhsold
   //delay(100);
   Serial2.write(THBUFF, sizeof(THBUFF));
+  Serial3.write(THBUFF, sizeof(THBUFF));
   delay(100);
 
   return;
@@ -273,6 +274,7 @@ void initTVG()
   Serial1.write(TVG, sizeof(TVG)); // serial transmit master data for bulk TVG
   //delay(100);
   Serial2.write(TVG, sizeof(TVG));
+  Serial3.write(TVG, sizeof(TVG));
   delay(100);
   return;
 }
@@ -298,6 +300,7 @@ void initAFEGAIN()
   Serial1.write(AFEGAIN, sizeof(AFEGAIN));
   //delay(100);
   Serial2.write(AFEGAIN, sizeof(AFEGAIN));
+  Serial3.write(AFEGAIN, sizeof(AFEGAIN));
   delay(100);
   return;
 }
@@ -646,8 +649,8 @@ void setup()
   Serial.begin(19200);
   Serial1.begin(19200, SERIAL_8N2);
   Serial2.begin(19200, SERIAL_8N2);
+  Serial3.begin(19200, SERIAL_8N2);
 
-  
   initThreshold();
   //initEEPROM();
   initAFEGAIN();
@@ -658,6 +661,8 @@ void setup()
   registerRead(regAddr, &Serial1); //register Address for REC_LENGTH
   Serial.print(" ");
   registerRead(regAddr, &Serial2);
+  Serial.print(" ");
+  registerRead(regAddr, &Serial3);
   Serial.println();
   delay(10);
 
@@ -666,6 +671,8 @@ void setup()
   registerRead(regAddr, &Serial1); //register Address for REC_LENGTH
   Serial.print(" ");
   registerRead(regAddr, &Serial2);
+  Serial.print(" ");
+  registerRead(regAddr, &Serial3);
   Serial.println();
   delay(10);
   
@@ -674,6 +681,8 @@ void setup()
   registerRead(regAddr,&Serial1); //register Address for THR_CRC_ERR
   Serial.print(" ");
   registerRead(regAddr, &Serial2);
+  Serial.print(" ");
+  registerRead(regAddr, &Serial3);
   Serial.println();
   
 
@@ -685,11 +694,12 @@ void setup()
 
 void loop() {
   // -+-+-+-+-+-+-+-+-+-+-  ISSUE SHORT-RANGE BURST+LSITEN COMMAND   -+-+-+-+-+-+-+-+-+-+- //
-  pga460SerialFlush(&Serial1); pga460SerialFlush(&Serial2);
+  pga460SerialFlush(&Serial1); pga460SerialFlush(&Serial2); pga460SerialFlush(&Serial3);
   byte echo[4] = {syncByte, P2BL, numObj, calcChecksum(P2BL)}; // prepare bufCmd with 0xFF placeholders
   Serial1.write(echo, sizeof(echo));
   //delay(20);
   Serial2.write(echo, sizeof(echo));
+  Serial3.write(echo, sizeof(echo));
   delay(10); // maximum record length is 65ms, so delay with margin
 
 
@@ -699,6 +709,7 @@ void loop() {
   Serial1.write(pullMeas, sizeof(pullMeas));
   //delay(10);
   Serial2.write(pullMeas, sizeof(pullMeas));
+  Serial3.write(pullMeas, sizeof(pullMeas));
   //delay(5);
 
   if(Serial1.available()<5){
@@ -724,7 +735,19 @@ void loop() {
       delay(1);
     }
   }
+
   
+  if(Serial3.available()<5){
+    Serial.println("ERROR");
+  }
+  else
+  {
+    for (int n = 12; n < (14 + (numObj * 4)); n++)
+    {
+      UMRData[n] = Serial3.read();
+      delay(1);
+    }
+  }
   for(uint8_t i = 0; i < numSerial; i++){
     double distance = printSensorMeas(i);
     Serial.print(distance);
