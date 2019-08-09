@@ -710,21 +710,23 @@ void loop() {
   //delay(10);
   Serial2.write(pullMeas, sizeof(pullMeas));
   Serial3.write(pullMeas, sizeof(pullMeas));
-  //delay(5);
+  delay(2);
 
-  if(Serial1.available()<5){
+  /*if(Serial1.available()<5){
     Serial.println("ERROR");
   }
   else
-  {
+  {*/
     for (int n = 0; n < (2 + (numObj * 4)); n++)
     {
       UMRData[n] = Serial1.read();
+      UMRData[n+6] = Serial2.read();
+      UMRData[n+12] = Serial3.read();
       delay(1);
     }
-  }
+  //}
 
-  if(Serial2.available()<5){
+  /*if(Serial2.available()<5){
     Serial.println("ERROR");
   }
   else
@@ -747,11 +749,11 @@ void loop() {
       UMRData[n] = Serial3.read();
       delay(1);
     }
-  }
+  }*/
   for(uint8_t i = 0; i < numSerial; i++){
     double distance = printSensorMeas(i);
     Serial.print(distance);
-    Serial.print("\t\t");
+    Serial.print("\t");
   }
   counter++;
   if (millis() - timer > 1000) {
