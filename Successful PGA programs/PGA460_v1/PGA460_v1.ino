@@ -22,21 +22,21 @@
 #define P1_THR_15 0x00
 
 //P2 threshold values
-#define P2_THR_0 0x88
-#define P2_THR_1 0x88
+#define P2_THR_0 0x94
+#define P2_THR_1 0x58
 #define P2_THR_2 0x88
-#define P2_THR_3 0x88
-#define P2_THR_4 0x88
-#define P2_THR_5 0x88
-#define P2_THR_6 0x84
-#define P2_THR_7 0x21
-#define P2_THR_8 0x08
-#define P2_THR_9 0x42
-#define P2_THR_10 0x10
-#define P2_THR_11 0x80
-#define P2_THR_12 0x80
-#define P2_THR_13 0x80
-#define P2_THR_14 0x80
+#define P2_THR_3 0x65
+#define P2_THR_4 0x9B
+#define P2_THR_5 0xCD
+#define P2_THR_6 0x81
+#define P2_THR_7 0x04
+#define P2_THR_8 0x11
+#define P2_THR_9 0x08
+#define P2_THR_10 0x21
+#define P2_THR_11 0x0E
+#define P2_THR_12 0x0A
+#define P2_THR_13 0x06
+#define P2_THR_14 0x0E
 #define P2_THR_15 0x00
 
 //SENSOR WRITE VALUES
@@ -66,10 +66,10 @@
 #define DEADTIME 0xA0
 
 #define PULSE_P1 0x08
-#define PULSE_P2 0x10
+#define PULSE_P2 0x14
 #define CURR_LIM_P1 0x55
-#define CURR_LIM_P2 0x55
-#define REC_LENGTH 0x19
+#define CURR_LIM_P2 0x30
+#define REC_LENGTH 0x14
 #define FREQ_DIAG 0x33
 #define SAT_FDIAG_TH 0xEE
 #define FVOLT_DEC 0x7C
@@ -84,10 +84,10 @@
 #define TVGAIN0 0x88
 #define TVGAIN1 0x88
 #define TVGAIN2 0x88
-#define TVGAIN3 0x82
-#define TVGAIN4 0x08
-#define TVGAIN5 0x20
-#define TVGAIN6 0x80
+#define TVGAIN3 0xC3
+#define TVGAIN4 0x0C
+#define TVGAIN5 0x30
+#define TVGAIN6 0xC0
 
 // Sync byte
 #define syncByte 0x55
@@ -95,7 +95,7 @@
 
 // Analog-front end amplifier range...
 //32-64db: 0xCF, 46-78db: 0x8F, 52-84db: 0x4F, 58-90db; 0x0F
-#define AFEGAINRANGE 0x8F
+#define AFEGAINRANGE 0x4F
 
 //ONE-ADDRESS UART commands
 #define P1BL 0x00
@@ -118,12 +118,12 @@ byte UMRData[35]; //holds Ultrasonic measurement data i.e. data,width,amplitude
 
 byte numObj = 1;
 bool objectDetected;
-uint8_t counter = 1;
+uint8_t counter = 0;
 unsigned long timer;
 double minDistLim = 0.00;
-uint16_t commandDelay = 5;
+uint16_t commandDelay = 1;
 byte regAddr;
-byte distance;
+double distance;
 //byte width;
 //byte peak;
 
@@ -192,7 +192,59 @@ void initEEPROM()
   return;
 
 }
+/*-------------------------------------------- initThresholds -----
+  |  Function initThresholds
+  |
+  |  Purpose:  Updates threshold mapping for both presets, and performs bulk threshold write
+  |
+  |  Parameters:
+  |
+  |  Returns:  none
+  -------------------------------------------------------------------*/
+void initThreshold()
+{
+  //Initialize Threshold buffer array
+  THBUFF[0] = syncByte;
+  THBUFF[1] = THRBW;
+  THBUFF[2] = P1_THR_0;
+  THBUFF[3] = P1_THR_1;
+  THBUFF[4] = P1_THR_2;
+  THBUFF[5] = P1_THR_3;
+  THBUFF[6] = P1_THR_4;
+  THBUFF[7] = P1_THR_5;
+  THBUFF[8] = P1_THR_6;
+  THBUFF[9] = P1_THR_7;
+  THBUFF[10] = P1_THR_8;
+  THBUFF[11] = P1_THR_9;
+  THBUFF[12] = P1_THR_10;
+  THBUFF[13] = P1_THR_11;
+  THBUFF[14] = P1_THR_12;
+  THBUFF[15] = P1_THR_13;
+  THBUFF[16] = P1_THR_14;
+  THBUFF[17] = P1_THR_15;
+  THBUFF[18] = P2_THR_0;
+  THBUFF[19] = P2_THR_1;
+  THBUFF[20] = P2_THR_2;
+  THBUFF[21] = P2_THR_3;
+  THBUFF[22] = P2_THR_4;
+  THBUFF[23] = P2_THR_5;
+  THBUFF[24] = P2_THR_6;
+  THBUFF[25] = P2_THR_7;
+  THBUFF[26] = P2_THR_8;
+  THBUFF[27] = P2_THR_9;
+  THBUFF[28] = P2_THR_10;
+  THBUFF[29] = P2_THR_11;
+  THBUFF[30] = P2_THR_12;
+  THBUFF[31] = P2_THR_13;
+  THBUFF[32] = P2_THR_14;
+  THBUFF[33] = P2_THR_15;
+  THBUFF[34] = calcChecksum(THRBW);
 
+  Serial.println("Init threshold");
+  Serial1.write(THBUFF, sizeof(THBUFF)); // serial transmit master data for bulk threhsold
+  delay(100);
+  return;
+}
 /*------------------------------------------------- initTVG -----
   |  Function initTVG
   |
@@ -293,136 +345,10 @@ double printSensorMeas(byte umr)
         objReturn = objAmp;
         break;
       }
-    /*case 3: //Obj2 Distance (m)
-      {
-      objDist = (UMRData[5] << 8) + UMRData[6];
-      objReturn = (objDist / 2 * 0.000001*speedSound) - digitalDelay;
-      break;
-      }
-      case 4: //Obj2 Width (us)
-      {
-      objWidth = UMRData[7];
-      objReturn = objWidth * 16;
-      break;
-      }
-      case 5: //Obj2 Peak Amplitude
-      {
-      objAmp = UMRData[8];
-      objReturn = objAmp;
-      break;
-      }
-
-      case 6: //Obj3 Distance (m)
-      {
-      objDist = (UMRData[9] << 8) + UMRData[10];
-      objReturn = (objDist / 2 * 0.000001*speedSound) - digitalDelay;
-      break;
-      }
-      case 7: //Obj3 Width (us)
-      {
-      objWidth = UMRData[11];
-      objReturn = objWidth * 16;
-      break;
-      }
-      case 8: //Obj3 Peak Amplitude
-      {
-      objAmp = UMRData[12];
-      objReturn = objAmp;
-      break;
-      }
-      case 9: //Obj4 Distance (m)
-      {
-      objDist = (UMRData[13] << 8) + UMRData[14];
-      objReturn = (objDist / 2 * 0.000001*speedSound) - digitalDelay;
-      break;
-      }
-      case 10: //Obj4 Width (us)
-      {
-      objWidth = UMRData[15];
-      objReturn = objWidth * 16;
-      break;
-      }
-      case 11: //Obj4 Peak Amplitude
-      {
-      objAmp = UMRData[16];
-      objReturn = objAmp;
-      break;
-      }
-      case 12: //Obj5 Distance (m)
-      {
-      objDist = (UMRData[17] << 8) + UMRData[18];
-      objReturn = (objDist / 2 * 0.000001*speedSound) - digitalDelay;
-      break;
-      }
-      case 13: //Obj5 Width (us)
-      {
-      objWidth = UMRData[19];
-      objReturn = objWidth * 16;
-      break;
-      }
-      case 14: //Obj5 Peak Amplitude
-      {
-      objAmp = UMRData[20];
-      objReturn = objAmp;
-      break;
-      }
-      case 15: //Obj6 Distance (m)
-      {
-      objDist = (UMRData[21] << 8) + UMRData[22];
-      objReturn = (objDist / 2 * 0.000001*speedSound) - digitalDelay;
-      break;
-      }
-      case 16: //Obj6 Width (us)
-      {
-      objWidth = UMRData[23];
-      objReturn = objWidth * 16;
-      break;
-      }
-      case 17: //Obj6 Peak Amplitude
-      {
-      objAmp = UMRData[24];
-      objReturn = objAmp;
-      break;
-      }
-      case 18: //Obj7 Distance (m)
-      {
-      objDist = (UMRData[25] << 8) + UMRData[26];
-      objReturn = (objDist / 2 * 0.000001*speedSound) - digitalDelay;
-      break;
-      }
-      case 19: //Obj7 Width (us)
-      {
-      objWidth = UMRData[27];
-      objReturn = objWidth * 16;
-      break;
-      }
-      case 20: //Obj7 Peak Amplitude
-      {
-      objAmp = UMRData[28];
-      objReturn = objAmp;
-      break;
-      }
-      case 21: //Obj8 Distance (m)
-      {
-      objDist = (UMRData[29] << 8) + UMRData[30];
-      objReturn = (objDist / 2 * 0.000001*speedSound) - digitalDelay;
-      break;
-      }
-      case 22: //Obj8 Width (us)
-      {
-      objWidth = UMRData[31];
-      objReturn = objWidth * 16;
-      break;
-      }
-      case 23: //Obj8 Peak Amplitude
-      {
-      objAmp = UMRData[32];
-      objReturn = objAmp;
-      break;
-      }*/
+    
     default: Serial.println("ERROR - Invalid object result!"); break;
   }
-  
+  //Serial.println(objReturn);
   return objReturn;
 }
 
@@ -480,67 +406,14 @@ bool pullSensorMeas()
       delay(1);
     }
   }
-
-  for (int n = 0; n < (2 + (numObj * 4)); n++)
+  /*for (int n = 0; n < (2 + (numObj * 4)); n++)
   {
     Serial.print(UMRData[n]); Serial.print(" ");
-  }
+  }*/
   return true;
 }
 
-/*-------------------------------------------- initThresholds -----
-  |  Function initThresholds
-  |
-  |  Purpose:  Updates threshold mapping for both presets, and performs bulk threshold write
-  |
-  |  Parameters:
-  |
-  |  Returns:  none
-  -------------------------------------------------------------------*/
-void initThreshold()
-{
-  //Initialize Threshold buffer array
-  THBUFF[0] = syncByte;
-  THBUFF[1] = THRBW;
-  THBUFF[2] = P1_THR_0;
-  THBUFF[3] = P1_THR_1;
-  THBUFF[4] = P1_THR_2;
-  THBUFF[5] = P1_THR_3;
-  THBUFF[6] = P1_THR_4;
-  THBUFF[7] = P1_THR_5;
-  THBUFF[8] = P1_THR_6;
-  THBUFF[9] = P1_THR_7;
-  THBUFF[10] = P1_THR_8;
-  THBUFF[11] = P1_THR_9;
-  THBUFF[12] = P1_THR_10;
-  THBUFF[13] = P1_THR_11;
-  THBUFF[14] = P1_THR_12;
-  THBUFF[15] = P1_THR_13;
-  THBUFF[16] = P1_THR_14;
-  THBUFF[17] = P1_THR_15;
-  THBUFF[18] = P2_THR_0;
-  THBUFF[19] = P2_THR_1;
-  THBUFF[20] = P2_THR_2;
-  THBUFF[21] = P2_THR_3;
-  THBUFF[22] = P2_THR_4;
-  THBUFF[23] = P2_THR_5;
-  THBUFF[24] = P2_THR_6;
-  THBUFF[25] = P2_THR_7;
-  THBUFF[26] = P2_THR_8;
-  THBUFF[27] = P2_THR_9;
-  THBUFF[28] = P2_THR_10;
-  THBUFF[29] = P2_THR_11;
-  THBUFF[30] = P2_THR_12;
-  THBUFF[31] = P2_THR_13;
-  THBUFF[32] = P2_THR_14;
-  THBUFF[33] = P2_THR_15;
-  THBUFF[34] = calcChecksum(THRBW);
 
-  Serial.println("Init threshold");
-  Serial1.write(THBUFF, sizeof(THBUFF)); // serial transmit master data for bulk threhsold
-  delay(100);
-  return;
-}
 /*------------------------------------------------- registerRead -----
   |  Function registerRead
   |
@@ -762,12 +635,10 @@ byte calcChecksum(byte cmd)
 void setup()
 {
   Serial.begin(19200);
-  Serial1.begin(19200, SERIAL_8N2);
-
-  
+  Serial1.begin(19200,SERIAL_8N2);
 
   initThreshold();
-  initEEPROM();
+  //initEEPROM();
   initAFEGAIN();
   initTVG();
 
@@ -780,7 +651,7 @@ void setup()
   regAddr = 0x22;
   registerRead(regAddr); //register Address for REC_LENGTH
   delay(10);
-  
+
   Serial.print("THR_CRC_ERR: ");
   regAddr = 0x4C;
   registerRead(regAddr); //register Address for THR_CRC_ERR
@@ -792,56 +663,29 @@ void setup()
 }
 
 void loop() {
-  // -+-+-+-+-+-+-+-+-+-+-  PRESET 1 (SHORT RANGE) MEASUREMENT   -+-+-+-+-+-+-+-+-+-+- //
-  objectDetected = false; // Initialize object detected flag to false
-  sensorEcho(P1BL);       // run preset 1 (short distance) burst+listen for 1 object
-  pullSensorMeas();       // Pull Ultrasonic Measurement Result
-  //counter++;
-  /*if (millis() - timer > 1000) {
-    Serial.println(counter);
-    counter = 1;
-    timer = millis();
-  }*/
-  for (byte i = 0; i < numObj; i++)
+
+  //objectDetected = false; // Initialize object detected flag to false
+  // -+-+-+-+-+-+-+-+-+-+-  PRESET 2 (LONG RANGE) MEASUREMENT   -+-+-+-+-+-+-+-+-+-+- //
+  Serial.println(distance);
+  sensorEcho(P2BL);               // run preset 2 (long distance) burst+listen for 1 object
+  pullSensorMeas();               // Get Ultrasonic Measurement Result
+  for (int i = 0; i < numObj; i++)
   {
-    // Log uUltrasonic Measurement Result: Obj1: 0=Distance(m), 1=Width, 2=Amplitude; Obj2: 3=Distance(m), 4=Width, 5=Amplitude; etc.;
-    distance = printSensorMeas(0 + (i * 3));
+    distance = printSensorMeas(0 + (i * 3)); // Print Ultrasonic Measurement Result i.e. Obj1: 0=Distance(m), 1=Width, 2=Amplitude; Obj2: 3=Distance(m), 4=Width, 5=Amplitude;
     //width = printSensorMeas(1+(i*3));
     //peak = printSensorMeas(2+(i*3));
-
+    
     delay(commandDelay);
-
-    if (distance > minDistLim && distance < 11.2)  // turn on DS1_LED if object is above minDistLim
+    //Serial.println(distance);
+    /*if (distance > minDistLim && distance < 11.2)
     {
-      Serial.print("P1 Distance (m): "); Serial.println(distance);
+      Serial.println(distance);
       objectDetected = true;
     }
-  }
-  
-  
-  // -+-+-+-+-+-+-+-+-+-+-  PRESET 2 (LONG RANGE) MEASUREMENT   -+-+-+-+-+-+-+-+-+-+- //
-  if (objectDetected == false)      // If no preset 1 (short distance) measurement result, switch to Preset 2 B+L command
-  {
-    sensorEcho(P2BL);               // run preset 2 (long distance) burst+listen for 1 object
-    pullSensorMeas();               // Get Ultrasonic Measurement Result
-    for (byte i = 0; i < numObj; i++)
+
+    else //(distance > 11.2 && distance < minDistLim)
     {
-      distance = printSensorMeas(0 + (i * 3)); // Print Ultrasonic Measurement Result i.e. Obj1: 0=Distance(m), 1=Width, 2=Amplitude; Obj2: 3=Distance(m), 4=Width, 5=Amplitude;
-      //width = printSensorMeas(1+(i*3));
-      //peak = printSensorMeas(2+(i*3));
-
-      delay(commandDelay);
-
-      if (distance > minDistLim && distance < 11.2)
-      {
-        Serial.print("P2 Distance (m): "); Serial.println(distance);
-        objectDetected = true;
-      }
-
-      else //(distance > 11.2 && distance < minDistLim)
-      {
-        Serial.println("0.");
-      }
-    }
+      Serial.println();
+    }*/
   }
 }

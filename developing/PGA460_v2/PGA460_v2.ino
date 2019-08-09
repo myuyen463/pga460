@@ -22,21 +22,21 @@
 #define P1_THR_15 0x00
 
 //P2 threshold values
-#define P2_THR_0 0x88
-#define P2_THR_1 0x88
+#define P2_THR_0 0x94
+#define P2_THR_1 0x58
 #define P2_THR_2 0x88
-#define P2_THR_3 0x88
-#define P2_THR_4 0x88
-#define P2_THR_5 0x88
-#define P2_THR_6 0x84
-#define P2_THR_7 0x21
-#define P2_THR_8 0x08
-#define P2_THR_9 0x42
-#define P2_THR_10 0x10
-#define P2_THR_11 0x80
-#define P2_THR_12 0x80
-#define P2_THR_13 0x80
-#define P2_THR_14 0x80
+#define P2_THR_3 0x65
+#define P2_THR_4 0x9B
+#define P2_THR_5 0xCD
+#define P2_THR_6 0x81
+#define P2_THR_7 0x04
+#define P2_THR_8 0x11
+#define P2_THR_9 0x08
+#define P2_THR_10 0x21
+#define P2_THR_11 0x0E
+#define P2_THR_12 0x0A
+#define P2_THR_13 0x06
+#define P2_THR_14 0x0E
 #define P2_THR_15 0x00
 
 //SENSOR WRITE VALUES
@@ -66,10 +66,10 @@
 #define DEADTIME 0xA0
 
 #define PULSE_P1 0x08
-#define PULSE_P2 0x10
+#define PULSE_P2 0x14
 #define CURR_LIM_P1 0x55
-#define CURR_LIM_P2 0x55
-#define REC_LENGTH 0x19
+#define CURR_LIM_P2 0x30
+#define REC_LENGTH 0x14
 #define FREQ_DIAG 0x33
 #define SAT_FDIAG_TH 0xEE
 #define FVOLT_DEC 0x7C
@@ -84,10 +84,10 @@
 #define TVGAIN0 0x88
 #define TVGAIN1 0x88
 #define TVGAIN2 0x88
-#define TVGAIN3 0x82
-#define TVGAIN4 0x08
-#define TVGAIN5 0x20
-#define TVGAIN6 0x80
+#define TVGAIN3 0xC3
+#define TVGAIN4 0x0C
+#define TVGAIN5 0x30
+#define TVGAIN6 0xC0
 
 // Sync byte
 #define syncByte 0x55
@@ -95,7 +95,7 @@
 
 // Analog-front end amplifier range...
 //32-64db: 0xCF, 46-78db: 0x8F, 52-84db: 0x4F, 58-90db; 0x0F
-#define AFEGAINRANGE 0x8F
+#define AFEGAINRANGE 0x4F
 
 //ONE-ADDRESS UART commands
 #define P1BL 0x00
@@ -120,10 +120,10 @@ byte UMRData[35]; //holds Ultrasonic measurement data i.e. data,width,amplitude
 byte numObj = 1;
 byte numSerial = 2;
 
-uint8_t counter = 1;
+uint8_t counter = 0;
 unsigned long timer;
 double minDistLim = 0.00;
-uint16_t commandDelay = 5;
+uint16_t commandDelay = 100;
 byte regAddr;
 
 /*------------------------------------------------- initEEPROM -----
@@ -191,7 +191,62 @@ void initEEPROM()
   return;
 
 }
+/*-------------------------------------------- initThresholds -----
+  |  Function initThresholds
+  |
+  |  Purpose:  Updates threshold mapping for both presets, and performs bulk threshold write
+  |
+  |  Parameters:
+  |
+  |  Returns:  none
+  -------------------------------------------------------------------*/
+void initThreshold()
+{
+  //Initialize Threshold buffer array
+  THBUFF[0] = syncByte;
+  THBUFF[1] = THRBW;
+  THBUFF[2] = P1_THR_0;
+  THBUFF[3] = P1_THR_1;
+  THBUFF[4] = P1_THR_2;
+  THBUFF[5] = P1_THR_3;
+  THBUFF[6] = P1_THR_4;
+  THBUFF[7] = P1_THR_5;
+  THBUFF[8] = P1_THR_6;
+  THBUFF[9] = P1_THR_7;
+  THBUFF[10] = P1_THR_8;
+  THBUFF[11] = P1_THR_9;
+  THBUFF[12] = P1_THR_10;
+  THBUFF[13] = P1_THR_11;
+  THBUFF[14] = P1_THR_12;
+  THBUFF[15] = P1_THR_13;
+  THBUFF[16] = P1_THR_14;
+  THBUFF[17] = P1_THR_15;
+  THBUFF[18] = P2_THR_0;
+  THBUFF[19] = P2_THR_1;
+  THBUFF[20] = P2_THR_2;
+  THBUFF[21] = P2_THR_3;
+  THBUFF[22] = P2_THR_4;
+  THBUFF[23] = P2_THR_5;
+  THBUFF[24] = P2_THR_6;
+  THBUFF[25] = P2_THR_7;
+  THBUFF[26] = P2_THR_8;
+  THBUFF[27] = P2_THR_9;
+  THBUFF[28] = P2_THR_10;
+  THBUFF[29] = P2_THR_11;
+  THBUFF[30] = P2_THR_12;
+  THBUFF[31] = P2_THR_13;
+  THBUFF[32] = P2_THR_14;
+  THBUFF[33] = P2_THR_15;
+  THBUFF[34] = calcChecksum(THRBW);
 
+  Serial.println("Init threshold");
+  Serial1.write(THBUFF, sizeof(THBUFF)); // serial transmit master data for bulk threhsold
+  //delay(100);
+  Serial2.write(THBUFF, sizeof(THBUFF));
+  delay(100);
+
+  return;
+}
 /*------------------------------------------------- initTVG -----
   |  Function initTVG
   |
@@ -216,6 +271,7 @@ void initTVG()
   TVG[9] = calcChecksum(TVGBW);
 
   Serial1.write(TVG, sizeof(TVG)); // serial transmit master data for bulk TVG
+  //delay(100);
   Serial2.write(TVG, sizeof(TVG));
   delay(100);
   return;
@@ -240,6 +296,7 @@ void initAFEGAIN()
   AFEGAIN[4] = calcChecksum(SRW);
 
   Serial1.write(AFEGAIN, sizeof(AFEGAIN));
+  //delay(100);
   Serial2.write(AFEGAIN, sizeof(AFEGAIN));
   delay(100);
   return;
@@ -356,68 +413,14 @@ bool pullSensorMeas()
     }
   }
 
-  for (int n = 0; n < (2 + (numObj * 4)); n++)
+  /*for (int n = 0; n < (2 + (numObj * 4)); n++)
   {
     Serial.print(UMRData[n]); Serial.print(" ");
-  }
+  }*/
   return true;
 }
 
-/*-------------------------------------------- initThresholds -----
-  |  Function initThresholds
-  |
-  |  Purpose:  Updates threshold mapping for both presets, and performs bulk threshold write
-  |
-  |  Parameters:
-  |
-  |  Returns:  none
-  -------------------------------------------------------------------*/
-void initThreshold()
-{
-  //Initialize Threshold buffer array
-  THBUFF[0] = syncByte;
-  THBUFF[1] = THRBW;
-  THBUFF[2] = P1_THR_0;
-  THBUFF[3] = P1_THR_1;
-  THBUFF[4] = P1_THR_2;
-  THBUFF[5] = P1_THR_3;
-  THBUFF[6] = P1_THR_4;
-  THBUFF[7] = P1_THR_5;
-  THBUFF[8] = P1_THR_6;
-  THBUFF[9] = P1_THR_7;
-  THBUFF[10] = P1_THR_8;
-  THBUFF[11] = P1_THR_9;
-  THBUFF[12] = P1_THR_10;
-  THBUFF[13] = P1_THR_11;
-  THBUFF[14] = P1_THR_12;
-  THBUFF[15] = P1_THR_13;
-  THBUFF[16] = P1_THR_14;
-  THBUFF[17] = P1_THR_15;
-  THBUFF[18] = P2_THR_0;
-  THBUFF[19] = P2_THR_1;
-  THBUFF[20] = P2_THR_2;
-  THBUFF[21] = P2_THR_3;
-  THBUFF[22] = P2_THR_4;
-  THBUFF[23] = P2_THR_5;
-  THBUFF[24] = P2_THR_6;
-  THBUFF[25] = P2_THR_7;
-  THBUFF[26] = P2_THR_8;
-  THBUFF[27] = P2_THR_9;
-  THBUFF[28] = P2_THR_10;
-  THBUFF[29] = P2_THR_11;
-  THBUFF[30] = P2_THR_12;
-  THBUFF[31] = P2_THR_13;
-  THBUFF[32] = P2_THR_14;
-  THBUFF[33] = P2_THR_15;
-  THBUFF[34] = calcChecksum(THRBW);
 
-  Serial.println("Init threshold");
-  Serial1.write(THBUFF, sizeof(THBUFF)); // serial transmit master data for bulk threhsold
-  Serial2.write(THBUFF, sizeof(THBUFF));
-  delay(100);
-  
-  return;
-}
 /*------------------------------------------------- registerRead -----
   |  Function registerRead
   |
@@ -428,7 +431,7 @@ void initThreshold()
   |
   |  Returns:  8-bit data read from register
   -------------------------------------------------------------------*/
-byte registerRead(byte addr, HardwareSerial serial)
+byte registerRead(byte addr, HardwareSerial* serial)
 {
   byte data = 0x00;
   byte temp = 0;
@@ -437,7 +440,7 @@ byte registerRead(byte addr, HardwareSerial serial)
 
   byte readBUFF[4] = { syncByte, SRR, addr, calcChecksum(SRR) };
 
-  serial.write(readBUFF, sizeof(readBUFF));
+  serial-> write(readBUFF, sizeof(readBUFF));
   delay(10);
   
 
@@ -445,18 +448,18 @@ byte registerRead(byte addr, HardwareSerial serial)
   {
     if (n == 1)
     {
-      data = serial.read(); // store read data
+      data = serial -> read(); // store read data
       delay(1);
       //Serial.print(data); Serial.print(" ");
     }
     else
     {
-      temp = serial.read();
+      temp = serial -> read();
       delay(1);
       //Serial.print(temp); Serial.print(" ");
     }
   }
-  Serial.println(data);
+  Serial.print(data);
   return data;
 }
 
@@ -470,10 +473,10 @@ byte registerRead(byte addr, HardwareSerial serial)
   |
   |  Returns: none
   -------------------------------------------------------------------*/
-void pga460SerialFlush(HardwareSerial serial)
+void pga460SerialFlush(HardwareSerial* serial)
 {
   delay(5);
-  serial.flush();
+  serial -> flush();
   
   return;
 }
@@ -652,26 +655,27 @@ void setup()
 
   Serial.print("UART_DIAG: ");
   regAddr = 0x1E;
-  registerRead(regAddr, Serial1); //register Address for REC_LENGTH
+  registerRead(regAddr, &Serial1); //register Address for REC_LENGTH
   Serial.print(" ");
-  registerRead(regAddr, Serial2);
+  registerRead(regAddr, &Serial2);
   Serial.println();
   delay(10);
 
   Serial.print("REC_LENGTH: ");
   regAddr = 0x22;
-  registerRead(regAddr, Serial1); //register Address for REC_LENGTH
+  registerRead(regAddr, &Serial1); //register Address for REC_LENGTH
   Serial.print(" ");
-  registerRead(regAddr, Serial2);
+  registerRead(regAddr, &Serial2);
   Serial.println();
   delay(10);
   
   Serial.print("THR_CRC_ERR: ");
   regAddr = 0x4C;
-  registerRead(regAddr,Serial1); //register Address for THR_CRC_ERR
+  registerRead(regAddr,&Serial1); //register Address for THR_CRC_ERR
   Serial.print(" ");
-  registerRead(regAddr, Serial2);
+  registerRead(regAddr, &Serial2);
   Serial.println();
+  
 
   Serial.println("\nInitialization done");
 
@@ -681,19 +685,21 @@ void setup()
 
 void loop() {
   // -+-+-+-+-+-+-+-+-+-+-  ISSUE SHORT-RANGE BURST+LSITEN COMMAND   -+-+-+-+-+-+-+-+-+-+- //
-  pga460SerialFlush(Serial1); pga460SerialFlush(Serial2);
-  byte echo[4] = {syncByte, P1BL, numObj, calcChecksum(P1BL)}; // prepare bufCmd with 0xFF placeholders
+  pga460SerialFlush(&Serial1); pga460SerialFlush(&Serial2);
+  byte echo[4] = {syncByte, P2BL, numObj, calcChecksum(P2BL)}; // prepare bufCmd with 0xFF placeholders
   Serial1.write(echo, sizeof(echo));
+  //delay(20);
   Serial2.write(echo, sizeof(echo));
-  delay(20); // maximum record length is 65ms, so delay with margin
+  delay(10); // maximum record length is 65ms, so delay with margin
 
 
-  // -+-+-+-+-+-+-+-+-+-+- ISSUE PULLING-DATA COMMAND -+-+-+-+-+-+-+-+-+-+-+-//
+  // -+-+-+-+-+-+-+-+-+-+- ISSUE PULLING DATA COMMAND -+-+-+-+-+-+-+-+-+-+-+-//
   memset(UMRData, 0, sizeof(UMRData));
   byte pullMeas[3] = {syncByte, UMR, calcChecksum(UMR)};
   Serial1.write(pullMeas, sizeof(pullMeas));
+  //delay(10);
   Serial2.write(pullMeas, sizeof(pullMeas));
-  delay(5);
+  //delay(5);
 
   if(Serial1.available()<5){
     Serial.println("ERROR");
@@ -703,6 +709,7 @@ void loop() {
     for (int n = 0; n < (2 + (numObj * 4)); n++)
     {
       UMRData[n] = Serial1.read();
+      delay(1);
     }
   }
 
@@ -714,21 +721,21 @@ void loop() {
     for (int n = 6; n < (8 + (numObj * 4)); n++)
     {
       UMRData[n] = Serial2.read();
+      delay(1);
     }
   }
   
   for(uint8_t i = 0; i < numSerial; i++){
     double distance = printSensorMeas(i);
-    delay(1);
-    Serial.print("US "); Serial.print(i+1); Serial.print(": ");
-    if (distance > minDistLim && distance < 11.2)  
-    {
-      Serial.print(distance);Serial.print(" ");
-    }
-    else
-    {
-      Serial.print("0.. ");
-    }
+    Serial.print(distance);
+    Serial.print("\t\t");
+  }
+  counter++;
+  if (millis() - timer > 1000) {
+    Serial.print("FPS:");
+    Serial.print(counter);
+    counter = 0;
+    timer = millis();
   }
   Serial.println();
 }
