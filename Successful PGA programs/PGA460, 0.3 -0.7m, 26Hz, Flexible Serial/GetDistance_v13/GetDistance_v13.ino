@@ -69,7 +69,7 @@ String interruptString = "";  // a string to hold incoming data
 boolean stringComplete = false; // whether the string is complete
 
 // PGA460_USSC library class
-pga460 ussc(&Serial3);
+pga460 ussc(&Serial2);
 
 //pga460 usscArr[3] = {ussc, ussc1, ussc2];
 
@@ -358,7 +358,7 @@ void loop() {                 // put your main code here, to run repeatedly
 
 void getDistance(pga460 ussc) {
   // -+-+-+-+-+-+-+-+-+-+-  PRESET 1 (SHORT RANGE) MEASUREMENT   -+-+-+-+-+-+-+-+-+-+- //
-  bool objectDetected = false;                       // Initialize object detected flag to false
+  //bool objectDetected = false;                       // Initialize object detected flag to false
   /*ussc.ultrasonicCmd(0, numOfObj);              // run preset 1 (short distance) burst+listen for 1 object
     ussc.pullUltrasonicMeasResult(demoMode);      // Pull Ultrasonic Measurement Result
     //counter++;
@@ -392,15 +392,16 @@ void getDistance(pga460 ussc) {
     //peak = ussc.printUltrasonicMeasResult(2+(i*3));
 
     delay(commandDelay);
+    Serial.println(distance);
 
-    if (distance > minDistLim && distance < 11.2)    // turn on DS1_LED and F_DIAG_LED if object is within 1m
-    {
+    /*if (distance > minDistLim && distance < 11.2)    // turn on DS1_LED and F_DIAG_LED if object is within 1m
+      {
 
       //Serial.print("P2 Distance (m): ");
       Serial.println(distance);
       objectDetected = true;
-    }
-    /*else if (distance < 3 && distance >= 1)      // turn on DS1_LED and F_DIAG_LED if object is within 3m
+      }
+      /*else if (distance < 3 && distance >= 1)      // turn on DS1_LED and F_DIAG_LED if object is within 3m
       {
 
       Serial.print("P2 Obj"); Serial.print(i + 1); Serial.print(" Distance (m): "); Serial.println(distance);
@@ -416,22 +417,22 @@ void getDistance(pga460 ussc) {
       {
 
       //Serial.print("Error reading measurement results..."); //Serial.println(distance);
-      }*/
-    else //(distance > 11.2 && distance < minDistLim)         // turn off all LEDs if no object detected or below minimum distance limit
-    {
+      }
+      else //(distance > 11.2 && distance < minDistLim)         // turn off all LEDs if no object detected or below minimum distance limit
+      {
       //if (i == numOfObj - 1 && objectDetected == false)
 
 
         Serial.println();
-    }
+      }*/
   }
-  /*counter++;
-  if (millis() - timer > 1000) {
+  counter++;
+    if (millis() - timer > 1000) {
     Serial.print("FPS:");
     Serial.println(counter);
     counter = 0;
     timer = millis();
-  }*/
+    }
 }
 
 // -+-+-+-+-+-+-+-+-+-+-  SERIAL MONITORING   -+-+-+-+-+-+-+-+-+-+- //

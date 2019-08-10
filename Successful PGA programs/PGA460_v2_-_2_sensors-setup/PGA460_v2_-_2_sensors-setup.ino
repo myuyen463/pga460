@@ -116,16 +116,15 @@ byte AFEGAIN[5]; //AFEGAIN array
 byte TVG[10]; //Threshold voltage gain array
 byte UMRData[35]; //holds Ultrasonic measurement data i.e. data,width,amplitude
 
+
 byte numObj = 1;
-bool objectDetected;
+byte numSerial = 2;
+
 uint8_t counter = 0;
 unsigned long timer;
 double minDistLim = 0.00;
-uint16_t commandDelay = 1;
+//uint16_t commandDelay = 100;
 byte regAddr;
-double distance;
-//byte width;
-//byte peak;
 
 /*------------------------------------------------- initEEPROM -----
   |  Function initEEPROM
@@ -187,6 +186,9 @@ void initEEPROM()
   SENSOR[45] = calcChecksum(EEBW);
 
   Serial1.write(SENSOR, sizeof(SENSOR)); // serial transmit master data for bulk SENSOR
+  Serial2.write(SENSOR, sizeof(SENSOR)); // serial transmit master data for bulk SENSOR
+  Serial3.write(SENSOR, sizeof(SENSOR)); // serial transmit master data for bulk SENSOR
+
   delay(10);
 
   return;
@@ -242,7 +244,10 @@ void initThreshold()
 
   Serial.println("Init threshold");
   Serial1.write(THBUFF, sizeof(THBUFF)); // serial transmit master data for bulk threhsold
+  Serial2.write(THBUFF, sizeof(THBUFF));
+  //Serial3.write(THBUFF, sizeof(THBUFF));
   delay(100);
+
   return;
 }
 /*------------------------------------------------- initTVG -----
@@ -269,6 +274,9 @@ void initTVG()
   TVG[9] = calcChecksum(TVGBW);
 
   Serial1.write(TVG, sizeof(TVG)); // serial transmit master data for bulk TVG
+  //delay(100);
+  Serial2.write(TVG, sizeof(TVG));
+  //Serial3.write(TVG, sizeof(TVG));
   delay(100);
   return;
 }
@@ -293,6 +301,9 @@ void initAFEGAIN()
 
   Serial1.write(AFEGAIN, sizeof(AFEGAIN));
   //delay(100);
+  Serial2.write(AFEGAIN, sizeof(AFEGAIN));
+  //Serial3.write(AFEGAIN, sizeof(AFEGAIN));
+  delay(100);
   return;
 }
 /*-------------------------------------printSensorMeas -----
@@ -322,8 +333,6 @@ double printSensorMeas(byte umr)
   double objReturn = 0;
   double digitalDelay = 0.00005 * speedSound;
   uint16_t objDist = 0;
-  uint16_t objWidth = 0;
-  uint16_t objAmp = 0;
 
   switch (umr)
   {
@@ -333,22 +342,32 @@ double printSensorMeas(byte umr)
         objReturn = (objDist / 2 * 0.000001 * speedSound) - digitalDelay;
         break;
       }
-    case 1: //Obj1 Width (us)
+
+    case 1: //Obj2 Distance (m)
       {
-        objWidth = UMRData[3];
-        objReturn = objWidth * 16;
-        break;
-      }
-    case 2: //Obj1 Peak Amplitude
-      {
-        objAmp = UMRData[4];
-        objReturn = objAmp;
+        objDist = (UMRData[7] << 8) + UMRData[8];
+        objReturn = (objDist / 2 * 0.000001 * speedSound) - digitalDelay;
         break;
       }
 
+    case 2: //Obj3 Distance (m)
+      {
+        objDist = (UMRData[13] << 8) + UMRData[14];
+        objReturn = (objDist / 2 * 0.000001 * speedSound) - digitalDelay;
+        break;
+      }
+
+    case 3: //Obj4 Distance (m)
+      {
+        objDist = (UMRData[17] << 8) + UMRData[18];
+        objReturn = (objDist / 2 * 0.000001 * speedSound) - digitalDelay;
+        break;
+      }
+
+
     default: Serial.println("ERROR - Invalid object result!"); break;
   }
-  //Serial.println(objReturn);
+
   return objReturn;
 }
 
@@ -364,14 +383,6 @@ double printSensorMeas(byte umr)
 
    Returns: none
 */
-void sensorEcho(byte cmd)
-{
-  pga460SerialFlush();
-  byte echo[4] = {syncByte, cmd, numObj, calcChecksum(cmd)}; // prepare bufCmd with 0xFF placeholders
-  Serial1.write(echo, sizeof(echo));
-  delay(10); // maximum record length is 65ms, so delay with margin
-  return;
-}
 
 /*------------------------------------------pullSensorMeas -----
   |  Function pullSensorMeas
@@ -406,6 +417,7 @@ bool pullSensorMeas()
       delay(1);
     }
   }
+
   /*for (int n = 0; n < (2 + (numObj * 4)); n++)
     {
     Serial.print(UMRData[n]); Serial.print(" ");
@@ -424,34 +436,35 @@ bool pullSensorMeas()
   |
   |  Returns:  8-bit data read from register
   -------------------------------------------------------------------*/
-byte registerRead(byte addr)
+byte registerRead(byte addr, HardwareSerial* serial)
 {
   byte data = 0x00;
   byte temp = 0;
 
-  pga460SerialFlush();
+  pga460SerialFlush(serial);
 
   byte readBUFF[4] = { syncByte, SRR, addr, calcChecksum(SRR) };
 
-  Serial1.write(readBUFF, sizeof(readBUFF));
+  serial-> write(readBUFF, sizeof(readBUFF));
   delay(10);
+
 
   for (int n = 0; n < 3; n++)
   {
     if (n == 1)
     {
-      data = Serial1.read(); // store read data
+      data = serial -> read(); // store read data
       delay(1);
       //Serial.print(data); Serial.print(" ");
     }
     else
     {
-      temp = Serial1.read();
+      temp = serial -> read();
       delay(1);
       //Serial.print(temp); Serial.print(" ");
     }
   }
-  Serial.println(data);
+  Serial.print(data);
   return data;
 }
 
@@ -465,10 +478,11 @@ byte registerRead(byte addr)
   |
   |  Returns: none
   -------------------------------------------------------------------*/
-void pga460SerialFlush()
+void pga460SerialFlush(HardwareSerial* serial)
 {
   delay(2);
-  Serial1.flush();
+  serial -> flush();
+
   return;
 }
 
@@ -636,6 +650,8 @@ void setup()
 {
   Serial.begin(19200);
   Serial1.begin(19200, SERIAL_8N2);
+  Serial2.begin(19200, SERIAL_8N2);
+  //Serial3.begin(19200, SERIAL_8N2);
 
   initThreshold();
   //initEEPROM();
@@ -644,17 +660,33 @@ void setup()
 
   Serial.print("UART_DIAG: ");
   regAddr = 0x1E;
-  registerRead(regAddr); //register Address for REC_LENGTH
+  registerRead(regAddr, &Serial1); //register Address for REC_LENGTH
+  Serial.print(" ");
+  registerRead(regAddr, &Serial2);
+  //Serial.print(" ");
+  //registerRead(regAddr, &Serial3);
+  Serial.println();
   delay(10);
 
   Serial.print("REC_LENGTH: ");
   regAddr = 0x22;
-  registerRead(regAddr); //register Address for REC_LENGTH
+  registerRead(regAddr, &Serial1); //register Address for REC_LENGTH
+  Serial.print(" ");
+  registerRead(regAddr, &Serial2);
+  //Serial.print(" ");
+  //registerRead(regAddr, &Serial3);
+  Serial.println();
   delay(10);
 
   Serial.print("THR_CRC_ERR: ");
   regAddr = 0x4C;
-  registerRead(regAddr); //register Address for THR_CRC_ERR
+  registerRead(regAddr, &Serial1); //register Address for THR_CRC_ERR
+  Serial.print(" ");
+  registerRead(regAddr, &Serial2);
+  //Serial.print(" ");
+  //registerRead(regAddr, &Serial3);
+  Serial.println();
+
 
   Serial.println("\nInitialization done");
 
@@ -663,37 +695,53 @@ void setup()
 }
 
 void loop() {
+  // -+-+-+-+-+-+-+-+-+-+-  ISSUE SHORT-RANGE BURST+LSITEN COMMAND   -+-+-+-+-+-+-+-+-+-+- //
+  pga460SerialFlush(&Serial1); 
+  pga460SerialFlush(&Serial2); 
+  //pga460SerialFlush(&Serial3);
+  byte echo[4] = {syncByte, P2BL, numObj, calcChecksum(P2BL)}; // prepare bufCmd with 0xFF placeholders
+  Serial1.write(echo, sizeof(echo));
+  Serial2.write(echo, sizeof(echo));
+  //Serial3.write(echo, sizeof(echo));
+  delay(10); // maximum record length is 65ms, so delay with margin
 
-  //objectDetected = false; // Initialize object detected flag to false
-  // -+-+-+-+-+-+-+-+-+-+-  PRESET 2 (LONG RANGE) MEASUREMENT   -+-+-+-+-+-+-+-+-+-+- //
 
-  sensorEcho(P2BL);               // run preset 2 (long distance) burst+listen for 1 object
-  pullSensorMeas();               // Get Ultrasonic Measurement Result
-  for (int i = 0; i < numObj; i++)
-  {
-    distance = printSensorMeas(0 + (i * 3)); // Print Ultrasonic Measurement Result i.e. Obj1: 0=Distance(m), 1=Width, 2=Amplitude; Obj2: 3=Distance(m), 4=Width, 5=Amplitude;
-    //width = printSensorMeas(1+(i*3));
-    //peak = printSensorMeas(2+(i*3));
+  // -+-+-+-+-+-+-+-+-+-+- ISSUE PULLING DATA COMMAND -+-+-+-+-+-+-+-+-+-+-+-//
+  memset(UMRData, 0, sizeof(UMRData));
+  byte pullMeas[3] = {syncByte, UMR, calcChecksum(UMR)};
+  Serial1.write(pullMeas, sizeof(pullMeas));
+  //delay(10);
+  Serial2.write(pullMeas, sizeof(pullMeas));
+  //Serial3.write(pullMeas, sizeof(pullMeas));
+  delay(2);
 
-    delay(commandDelay);
-    Serial.println(distance);
-    //Serial.println(distance);
-    /*if (distance > minDistLim && distance < 11.2)
-      {
-      Serial.println(distance);
-      objectDetected = true;
-      }
-
-      else //(distance > 11.2 && distance < minDistLim)
-      {
-      Serial.println();
-      }*/
-    counter++;
-    if (millis() - timer > 1000) {
-      Serial.print("FPS:");
-      Serial.println(counter);
-      counter = 0;
-      timer = millis();
+  /*if(Serial1.available()<5){
+    Serial.println("ERROR");
     }
+    else
+    {*/
+  for (int n = 0; n < (2 + (numObj * 4)); n++)
+  {
+    UMRData[n] = Serial1.read();
+    UMRData[n + 6] = Serial2.read();
+    //UMRData[n+12] = Serial3.read();
+    delay(1);
   }
+
+  /*for(uint8_t i = 0; i<12; i++){
+    Serial.print(UMRData[i]);Serial.print(" ");
+  }*/
+  for (uint8_t i = 0; i < numSerial; i++) {
+    double distance = printSensorMeas(i);
+    Serial.print(distance);
+    Serial.print("\t");
+  }
+  counter++;
+  if (millis() - timer > 1000) {
+    Serial.print("FPS:");
+    Serial.print(counter);
+    counter = 0;
+    timer = millis();
+  }
+  Serial.println();
 }
