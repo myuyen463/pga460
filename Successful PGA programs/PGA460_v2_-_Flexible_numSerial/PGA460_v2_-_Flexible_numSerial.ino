@@ -1,6 +1,5 @@
-#include <SPI.h>
-#include <mcp2515.h>
 
+#include <SoftwareSerial.h>
 
 // P1 and P2 threshold values
 
@@ -117,21 +116,46 @@ byte AFEGAIN[5]; //AFEGAIN array
 byte TVG[10]; //Threshold voltage gain array
 byte UMRData[35]; //holds Ultrasonic measurement data i.e. data,width,amplitude
 
-struct can_frame canMsg1;
-//struct can_frame canMsg2;
-MCP2515 mcp2515(53);
 
 byte numObj = 1;
 byte numSerial = 3;
 
-int counter = 0;
-int stepper = 0;
+uint8_t counter = 0;
 unsigned long timer;
 double minDistLim = 0.00;
 uint16_t commandDelay = 100;
 byte regAddr;
 
-/*------------------------------------------------- initEEPROM -----
+
+
+/*-------------initSerial------
+   Function initSerial
+
+   Purpose: Begin serial communication with connected PGA460s specified by numSerial
+
+   Parameters: none
+
+    Returns: none
+  -----------------------------*/
+void initSerial() {
+  for (uint8_t i = 0; i < numSerial; i++) {
+    switch (i) {
+      case 0:
+        Serial1.begin(19200, SERIAL_8N2);
+        break;
+      case 1:
+        Serial2.begin(19200, SERIAL_8N2);
+        break;
+      case 2:
+        Serial3.begin(19200, SERIAL_8N2);
+        break;
+      default:
+        Serial1.begin(19200,SERIAL_8N2);
+        break;
+    }
+  }
+}
+/*----------------- initEEPROM ----------
   |  Function initEEPROM
   |
   |  Purpose:  Updates user EEPROM values, and performs bulk EEPROM write.
@@ -139,7 +163,7 @@ byte regAddr;
   |  Parameters:
   |
   |  Returns:  none
-  -------------------------------------------------------------------*/
+  ---------------------------------*/
 void initEEPROM()
 {
   // Murata MA58MF14-7N
@@ -190,6 +214,20 @@ void initEEPROM()
   SENSOR[44] = P2_GAIN_CTRL;
   SENSOR[45] = calcChecksum(EEBW);
 
+
+  for (uint8_t i = 0; i < numSerial; i++) {
+    switch (i) {
+      case 0:
+        Serial1.write(SENSOR, sizeof(SENSOR));
+        break;
+      case 1:
+        Serial2.write(SENSOR, sizeof(SENSOR));
+        break;
+      case 2:
+        Serial2.write(SENSOR, sizeof(SENSOR));
+        break;
+    }
+  }
   Serial1.write(SENSOR, sizeof(SENSOR)); // serial transmit master data for bulk SENSOR
   Serial2.write(SENSOR, sizeof(SENSOR)); // serial transmit master data for bulk SENSOR
   Serial3.write(SENSOR, sizeof(SENSOR)); // serial transmit master data for bulk SENSOR
@@ -199,7 +237,7 @@ void initEEPROM()
   return;
 
 }
-/*-------------------------------------------- initThresholds -----
+/*----------------- initThresholds ------------
   |  Function initThresholds
   |
   |  Purpose:  Updates threshold mapping for both presets, and performs bulk threshold write
@@ -207,7 +245,7 @@ void initEEPROM()
   |  Parameters:
   |
   |  Returns:  none
-  -------------------------------------------------------------------*/
+  --------------------------------------------*/
 void initThreshold()
 {
   //Initialize Threshold buffer array
@@ -248,14 +286,24 @@ void initThreshold()
   THBUFF[34] = calcChecksum(THRBW);
 
   Serial.println("Init threshold");
-  Serial1.write(THBUFF, sizeof(THBUFF)); // serial transmit master data for bulk threhsold
-  Serial2.write(THBUFF, sizeof(THBUFF));
-  Serial3.write(THBUFF, sizeof(THBUFF));
+  for (uint8_t i = 0; i < numSerial; i++) {
+    switch (i) {
+      case 0:
+        Serial1.write(THBUFF, sizeof(THBUFF));
+        break;
+      case 1:
+        Serial2.write(THBUFF, sizeof(THBUFF));
+        break;
+      case 2:
+        Serial3.write(THBUFF, sizeof(THBUFF));
+        break;
+    }
+  }
   delay(100);
 
   return;
 }
-/*------------------------------------------------- initTVG -----
+/*-------------------- initTVG -------------
   |  Function initTVG
   |
   |  Purpose:  Updates time varying gain (TVG) range and mapping, and performs bulk TVG write
@@ -263,7 +311,7 @@ void initThreshold()
   |  Parameters:
   |
   |  Returns:  none
-  -------------------------------------------------------------------*/
+  -------------------------------------*/
 void initTVG()
 {
   // Initialise TVG values in array
@@ -278,13 +326,24 @@ void initTVG()
   TVG[8] = TVGAIN6;
   TVG[9] = calcChecksum(TVGBW);
 
-  Serial1.write(TVG, sizeof(TVG)); // serial transmit master data for bulk TVG
-  Serial2.write(TVG, sizeof(TVG));
-  Serial3.write(TVG, sizeof(TVG));
+  for (uint8_t i = 0; i < numSerial; i++) {
+    switch (i) {
+      case 0:
+        Serial1.write(TVG, sizeof(TVG));
+        break;
+      case 1:
+        Serial2.write(TVG, sizeof(TVG));
+        break;
+      case 2:
+        Serial3.write(TVG, sizeof(TVG));
+        break;
+    }
+  }
+ 
   delay(100);
   return;
 }
-/*---------------------------------------------initAFEGAIN-----
+/*----------------initAFEGAIN----------
   | Function initAFEGAIN
   |
   | Purpose: Updates analog-front end(AFE) gain range and mapping, and performs serial write
@@ -292,9 +351,9 @@ void initTVG()
   | Parameters:
   |
   | Return: none
-*/
-void initAFEGAIN()
-{
+  -------------------------------------------*/
+  void initAFEGAIN()
+  {
   regAddr = 0x26; //register Address associated with AFEGAIN range
 
   AFEGAIN[0] = syncByte;
@@ -303,13 +362,24 @@ void initAFEGAIN()
   AFEGAIN[3] = AFEGAINRANGE;
   AFEGAIN[4] = calcChecksum(SRW);
 
-  Serial1.write(AFEGAIN, sizeof(AFEGAIN));
-  Serial2.write(AFEGAIN, sizeof(AFEGAIN));
-  Serial3.write(AFEGAIN, sizeof(AFEGAIN));
+  for (uint8_t i = 0; i < numSerial; i++) {
+    switch (i) {
+      case 0:
+        Serial1.write(AFEGAIN, sizeof(AFEGAIN));
+        break;
+      case 1:
+        Serial2.write(AFEGAIN, sizeof(AFEGAIN));
+        break;
+      case 2:
+        Serial3.write(AFEGAIN, sizeof(AFEGAIN));
+        break;
+    }
+  }
+
   delay(100);
   return;
-}
-/*-------------------------------------printSensorMeas -----
+  }
+  /*---------------------printSensorMeas -----
   |  Function printSensorMeas
   |
   |  Purpose:  Converts time-of-flight readout to distance in meters.
@@ -329,7 +399,7 @@ void initAFEGAIN()
   |      Obj8    21    22    23
   |
   |  Returns:  double representation of distance (m), width (us), or amplitude (8-bit)
-  -------------------------------------------------------------------*/
+  -----------------------------------------*/
 double printSensorMeas(byte umr)
 {
   int speedSound = 343; // 343 degC at room temperature
@@ -374,62 +444,7 @@ double printSensorMeas(byte umr)
   return objReturn;
 }
 
-/*------------------------------------------sensorEcho------------
-   Function sensorEcho
-
-   Purpose: Burst signals to be detected upon reflected by objects
-
-   Parameters:
-    preset(IN) -- determines which preset command is run
-      P1BL - Preset 1 Burst + Listen command
-      P2BL - Preset 2 Burst + Listen command
-
-   Returns: none
-*/
-
-/*------------------------------------------pullSensorMeas -----
-  |  Function pullSensorMeas
-  |
-  |  Purpose:  Read the ultrasonic measurement result data based on the last busrt and/or listen command issued.
-  |
-  |  Parameters:
-  |
-  |  Returns:  If measurement data successfully read, return true.
-  -------------------------------------------------------------------*/
-bool pullSensorMeas()
-{
-  //pga460SerialFlush();
-
-  memset(UMRData, 0, sizeof(UMRData));
-  byte pullMeas[3] = { syncByte, UMR, calcChecksum(UMR) };
-
-  Serial1.write(pullMeas, sizeof(pullMeas)); //serial transmit master data to read ultrasonic measurement results
-  delay(1);
-
-  if (Serial1.available() < 5)
-  {
-    // the data didn't come in - handle the problem here
-    Serial.println("ERROR - Did not receive measurement results!");
-    return false;
-  }
-  else
-  {
-    for (int n = 0; n < (2 + (numObj * 4)); n++)
-    {
-      UMRData[n] = Serial1.read();
-      delay(1);
-    }
-  }
-
-  /*for (int n = 0; n < (2 + (numObj * 4)); n++)
-    {
-    Serial.print(UMRData[n]); Serial.print(" ");
-    }*/
-  return true;
-}
-
-
-/*------------------------------------------------- registerRead -----
+/*----------------- registerRead -----
   |  Function registerRead
   |
   |  Purpose:  Read single register data from PGA460
@@ -438,7 +453,7 @@ bool pullSensorMeas()
   |    addr (IN) -- PGA460 register address to read data from
   |
   |  Returns:  8-bit data read from register
-  -------------------------------------------------------------------*/
+  --------------------------------------*/
 byte registerRead(byte addr, HardwareSerial* serial)
 {
   byte data = 0x00;
@@ -471,16 +486,15 @@ byte registerRead(byte addr, HardwareSerial* serial)
   return data;
 }
 
-/*------------------------------------------------- pga460SerialFlush -----
+/*----------------- pga460SerialFlush -----
   |  Function pga460SerialFlush
   |
-  |  Purpose:  Clears the MSP430's UART receiver buffer
+  |  Purpose:  Clears the Mega's UART receiver buffer
   |
-  |  Parameters:
-  |    none
+  |  Parameters:none
   |
   |  Returns: none
-  -------------------------------------------------------------------*/
+  ------------------------------------------*/
 void pga460SerialFlush(HardwareSerial* serial)
 {
   delay(2);
@@ -649,21 +663,20 @@ byte calcChecksum(byte cmd)
 }
 
 
+
 void setup()
 {
   Serial.begin(19200);
   timer = millis();
-  Serial1.begin(19200, SERIAL_8N2);
-  Serial2.begin(19200, SERIAL_8N2);
-  Serial3.begin(19200, SERIAL_8N2);
-
-
+  initSerial();
   initThreshold();
   //initEEPROM();
   initAFEGAIN();
   initTVG();
-  Serial.println(millis() - timer);
+  Serial.println(millis()-timer);
+  
 
+  
   Serial.print("UART_DIAG: ");
   regAddr = 0x1E;
   registerRead(regAddr, &Serial1); //register Address for REC_LENGTH
@@ -696,22 +709,6 @@ void setup()
 
   Serial.println("\nInitialization done");
 
-  canMsg1.can_id  = 0x0F6;
-  canMsg1.can_dlc = 8;
-  canMsg1.data[0] = 0x00;
-  canMsg1.data[1] = 0x00;
-  canMsg1.data[2] = 0x00;
-  canMsg1.data[3] = 0x00;
-  canMsg1.data[4] = 0x00;
-  canMsg1.data[5] = 0x00;
-  canMsg1.data[6] = 0x00;
-  canMsg1.data[7] = 0x00;
-
-  SPI.begin();
-  mcp2515.reset();
-  mcp2515.setBitrate(CAN_500KBPS, MCP_8MHZ);
-  mcp2515.setNormalMode();
-
   timer = millis();
 
 }
@@ -738,6 +735,11 @@ void loop() {
   Serial3.write(pullMeas, sizeof(pullMeas));
   delay(2);
 
+  /*if(Serial1.available()<5){
+    Serial.println("ERROR");
+    }
+    else
+    {*/
   for (int n = 0; n < (2 + (numObj * 4)); n++)
   {
     UMRData[n] = Serial1.read();
@@ -745,43 +747,43 @@ void loop() {
     UMRData[n + 12] = Serial3.read();
     delay(1);
   }
+  //}
 
-  for (uint8_t i = 0; i < numSerial; i++) {
-    int distance = printSensorMeas(i) * 100;
-    //Serial.print(distance);Serial.print("\t");
-    switch (i) {
-      case 0:
-        canMsg1.data[0] = highByte(distance);
-        canMsg1.data[1] = lowByte(distance);
-        Serial.print(distance / 100.0); Serial.print("\t");
-        break;
-      case 1:
-        canMsg1.data[2] = highByte(distance);
-        canMsg1.data[3] = lowByte(distance);
-        Serial.print(distance / 100.0); Serial.print("\t");
-        break;
-      case 2:
-        canMsg1.data[4] = highByte(distance);
-        canMsg1.data[5] = lowByte(distance);
-        Serial.print(distance / 100.0); Serial.print("\t");
-        break;
-      case 3:
-        stepper++;
-        canMsg1.data[6] = highByte(counter);
-        canMsg1.data[7] = lowByte(counter);
-        Serial.print(stepper);
-        break;
+  /*if(Serial2.available()<5){
+    Serial.println("ERROR");
     }
-    counter++;
+    else
+    {
+    for (int n = 6; n < (8 + (numObj * 4)); n++)
+    {
+      UMRData[n] = Serial2.read();
+      delay(1);
+    }
+    }
 
 
+    if(Serial3.available()<5){
+    Serial.println("ERROR");
+    }
+    else
+    {
+    for (int n = 12; n < (14 + (numObj * 4)); n++)
+    {
+      UMRData[n] = Serial3.read();
+      delay(1);
+    }
+    }*/
+  for (uint8_t i = 0; i < numSerial; i++) {
+    double distance = printSensorMeas(i);
+    Serial.print(distance);
+    Serial.print("\t");
   }
+  counter++;
   if (millis() - timer > 1000) {
     Serial.print("FPS:");
     Serial.print(counter);
     counter = 0;
     timer = millis();
   }
-
   Serial.println();
 }

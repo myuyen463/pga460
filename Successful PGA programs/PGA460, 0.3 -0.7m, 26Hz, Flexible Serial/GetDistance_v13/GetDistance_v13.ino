@@ -1,4 +1,4 @@
-/*------------------------------------------------- GetDistance -----
+ /*------------------------------------------------- GetDistance -----
   PROJECT:     PGA460 UART, TCI, OWU, & SPI Ultrasonic Time-of-Flight
   DESCRIPTION: Transmits and receives ultrasonic echo data to measure
               time-of-flight distance, width, and/or amplitude.
@@ -69,7 +69,7 @@ String interruptString = "";  // a string to hold incoming data
 boolean stringComplete = false; // whether the string is complete
 
 // PGA460_USSC library class
-pga460 ussc(&Serial2);
+pga460 ussc(&Serial3);
 
 //pga460 usscArr[3] = {ussc, ussc1, ussc2];
 
@@ -426,13 +426,13 @@ void getDistance(pga460 ussc) {
         Serial.println();
       }*/
   }
-  counter++;
+  /*counter++;
     if (millis() - timer > 1000) {
     Serial.print("FPS:");
     Serial.println(counter);
     counter = 0;
     timer = millis();
-    }
+    }*/
 }
 
 // -+-+-+-+-+-+-+-+-+-+-  SERIAL MONITORING   -+-+-+-+-+-+-+-+-+-+- //
