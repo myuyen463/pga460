@@ -1,0 +1,67 @@
+Part  Value             Device                  Package             
+C1    10uF              C-USC1206               C1206               
+C2    0.1uF             C-USC1206               C1206               
+C3    100uF             C-USC1206               C1206               
+C4    220uF             C-USC1210               C1210               
+C5    10uF              C-USC1206               C1206               
+C6    100uF16V          C-USC1210               C1210               
+C7    0.1uF             C-USC1206               C1206               
+C8    1uF               C-USC1206               C1206               
+C9    0.01uF            C-USC1206               C1206               
+C10   0.22uF            C-USC1206               C1206               
+C11   0.1uF             C-USC1206               C1206               
+C12   4.7uF             C-USC1206               C1206               
+C13   10uF              C-USC1206               C1206               
+C14   0.1uF             C-USC1206               C1206               
+C15   10uF              C-USC1206               C1206               
+C16   0.1uF             C-USC1206               C1206               
+C17   0.01uF            C-USC1206               C1206               
+C18   0.01uF            C-USC1206               C1206               
+C19   0.01uF            C-USC1206               C1206               
+C20   0.01uF            C-USC1206               C1206               
+C21   0.1uF             C-USC1206               C1206               
+D1    STTH102A          DIODESMA-ALT            SMA-DIODE_ALT       
+D2    13 - red          LED1206                 LED-1206            
+D3    Fix - blue        LED1206                 LED-1206            
+D4    RSSI - yellow     LED1206                 LED-1206            
+D5    SDAct - orange    LED1206                 LED-1206            
+D6    PWR - green       LED1206                 LED-1206            
+D7    Pyro1 - red       LED1206                 LED-1206            
+D8    Pyro2 - red       LED1206                 LED-1206            
+D9    Pyro3 - red       LED1206                 LED-1206            
+D10   Pyro4 - red       LED1206                 LED-1206            
+J1    ExtBatt           M02-JST-2-PTH-NO_SILK   JST-2-PTH-NS        
+J2    Mega R3           ARDUINO-MEGAFULL        ARDUINO_MEGA        
+J3    XBEE              XBEE                    XBEE                
+J4    MICROSD           MICROSD                 MICROSD             
+J5    U.FL              U.FL                    U.FL                
+J6    1X6TERMINALBLOCK  1X6TERMINALBLOCK        1X6TERMINALBLOCK    
+LOGO1 OSHW-LOGOM        OSHW-LOGOM              OSHW-LOGO-M         
+Q1    SI7112DN          MOSFET-NCHANNELSI7820DN POWERPAK1212-8      
+Q2    BSS138            BSS138                  SOT23               
+Q3    BSS138            BSS138                  SOT23               
+Q4    SI7112DN          MOSFET-NCHANNELSI7820DN POWERPAK1212-8      
+Q5    SI7112DN          MOSFET-NCHANNELSI7820DN POWERPAK1212-8      
+Q6    SI7112DN          MOSFET-NCHANNELSI7820DN POWERPAK1212-8      
+Q7    SI7112DN          MOSFET-NCHANNELSI7820DN POWERPAK1212-8      
+R1    100k              R-US_R1206              R1206               
+R2    620k              R-US_R1206              R1206               
+R3    330               R-US_R1206              R1206               
+R4    10k               R-US_R1206              R1206               
+RA1   330               RESISTOR_CRA06S08       1206X4RESISTORARRAY 
+RA2   10k               RESISTOR_CRA06S08       1206X4RESISTORARRAY 
+RA3   100k              RESISTOR_CRA06S08       1206X4RESISTORARRAY 
+RA4   620k              RESISTOR_CRA06S08       1206X4RESISTORARRAY 
+RA5   330               RESISTOR_CRA06S08       1206X4RESISTORARRAY 
+RA6   10k               RESISTOR_CRA06S08       1206X4RESISTORARRAY 
+S1    KMR2              TAC_SWITCHKMR2          TACTILE_KMR2        
+S2    AYZ0202           AYZ0202                 AYZ0202             
+SG1   CCV084            BUZZERSMD2              BUZZER-CCV          
+U$1   OSAEROSPACEVECTOR OSAEROSPACEVECTOR       OSAEROSPACE_V       
+U1    NCP1117DT33G      NCP1117DT33G            DPAK                
+U2    M74HC4050M        HEX_CONVERTER           SO016               
+U3    FGPMMOPA6H        GPS_FGPMMOPA6H          FGPMMOPA6H          
+U4    BMP180            BMP180                  BMP180              
+U5    LSM303DLHCTR      LSM303DLHC              LGA14               
+U6    L3GD20TR          L3GD20                  LGA16-4X4           
+U7    ADXL377           ADXL377                 LFCSP-16            

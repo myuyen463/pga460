@@ -30,7 +30,9 @@ void loop() {
     //Serial.print(" ");
     
     for (int i = 0; i<4; i++)  {  // print the data
-      int distance = canMsg.data[2*i]*256 + canMsg.data[2*i+1];
+      //int distance = canMsg.data[2*i]*256 + canMsg.data[2*i+1];
+      //int distance = canMsg.data[2*i+1] | canMsg.data[2*i] << 8;
+      int distance = (canMsg.data[2*i]<<8) + canMsg.data[2*i+1];
       Serial.print(distance);
       Serial.print("\t");
     }
