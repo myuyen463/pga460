@@ -2423,9 +2423,9 @@ design rules under a new name.</description>
 <attribute name="NAME" x="70.231" y="-34.036" size="1.27" layer="25"/>
 <attribute name="VALUE" x="70.231" y="-37.338" size="1.27" layer="27"/>
 </element>
-<element name="D1" library="casovac" package="SMA" value="1N4007" x="48.006" y="-44.45" smashed="yes" rot="R180">
-<attribute name="NAME" x="51.181" y="-46.0375" size="1.27" layer="25" rot="R180"/>
-<attribute name="VALUE" x="51.181" y="-41.5925" size="1.27" layer="27" rot="R180"/>
+<element name="D1" library="casovac" package="SMA" value="1N4007" x="48.006" y="-44.45" smashed="yes">
+<attribute name="NAME" x="44.831" y="-42.8625" size="1.27" layer="25"/>
+<attribute name="VALUE" x="44.831" y="-47.3075" size="1.27" layer="27"/>
 </element>
 <element name="D2" library="casovac" package="SMA" value="1N4007" x="44.958" y="-35.306" smashed="yes">
 <attribute name="NAME" x="41.783" y="-33.7185" size="1.27" layer="25"/>
@@ -2755,7 +2755,7 @@ design rules under a new name.</description>
 <signal name="N$4">
 <contactref element="R1" pad="1"/>
 <contactref element="D1" pad="K"/>
-<wire x1="45.956" y1="-44.45" x2="48.53" y2="-49.53" width="0" layer="19" extent="1-1"/>
+<wire x1="50.056" y1="-44.45" x2="48.53" y2="-49.53" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="TX2">
 <contactref element="R11" pad="2"/>
@@ -3050,8 +3050,8 @@ design rules under a new name.</description>
 <wire x1="56.118" y1="-11.684" x2="71.208" y2="-18.034" width="0" layer="19" extent="1-1"/>
 <wire x1="61.452" y1="-49.784" x2="66.532" y2="-30.48" width="0" layer="19" extent="1-1"/>
 <wire x1="50.8" y1="-55.626" x2="61.452" y2="-49.784" width="0" layer="19" extent="1-1"/>
-<wire x1="50.056" y1="-44.45" x2="50.8" y2="-55.626" width="0" layer="19" extent="1-1"/>
-<wire x1="42.908" y1="-35.306" x2="50.056" y2="-44.45" width="0" layer="19" extent="1-1"/>
+<wire x1="45.956" y1="-44.45" x2="50.8" y2="-55.626" width="0" layer="19" extent="1-1"/>
+<wire x1="42.908" y1="-35.306" x2="45.956" y2="-44.45" width="0" layer="19" extent="1-1"/>
 <wire x1="38.943" y1="-16.663" x2="42.908" y2="-35.306" width="0" layer="19" extent="1-1"/>
 </signal>
 <signal name="INT">
