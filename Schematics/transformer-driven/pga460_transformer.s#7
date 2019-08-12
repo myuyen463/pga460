@@ -11487,11 +11487,11 @@ W = angled&lt;p&gt;
 <attribute name="VALUE" x="219.71" y="-32.258" size="1.778" layer="96" rot="R180"/>
 </instance>
 <instance part="R13" gate="G$1" x="167.64" y="-68.58" smashed="yes">
-<attribute name="NAME" x="171.45" y="-69.6214" size="1.778" layer="95"/>
+<attribute name="NAME" x="171.45" y="-67.0814" size="1.778" layer="95"/>
 <attribute name="VALUE" x="161.29" y="-69.342" size="1.778" layer="96"/>
 </instance>
 <instance part="R14" gate="G$1" x="220.98" y="-68.58" smashed="yes" rot="R270">
-<attribute name="NAME" x="217.17" y="-67.0814" size="1.778" layer="95"/>
+<attribute name="NAME" x="222.25" y="-72.1614" size="1.778" layer="95"/>
 <attribute name="VALUE" x="222.25" y="-66.802" size="1.778" layer="96"/>
 </instance>
 <instance part="MURATA1" gate="G$1" x="241.3" y="-68.58" smashed="yes" rot="R180">
@@ -12414,6 +12414,8 @@ W = angled&lt;p&gt;
 <wire x1="218.44" y1="-27.94" x2="218.44" y2="-20.32" width="0.1524" layer="91"/>
 <wire x1="218.44" y1="-20.32" x2="226.06" y2="-20.32" width="0.1524" layer="91"/>
 <label x="203.2" y="-27.94" size="1.778" layer="95"/>
+<junction x="203.2" y="-27.94"/>
+<junction x="226.06" y="-20.32"/>
 </segment>
 <segment>
 <pinref part="T1" gate="G$1" pin="2"/>
