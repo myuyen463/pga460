@@ -746,9 +746,8 @@ void loop() {
     delay(1);
   }
 
-  for (uint8_t i = 0; i < numSerial; i++) {
+  for (uint8_t i = 0; i < 4; i++) {
     int distance = printSensorMeas(i) * 100;
-    //Serial.print(distance);Serial.print("\t");
     switch (i) {
       case 0:
         canMsg1.data[0] = highByte(distance);
@@ -767,21 +766,20 @@ void loop() {
         break;
       case 3:
         stepper++;
-        canMsg1.data[6] = highByte(counter);
-        canMsg1.data[7] = lowByte(counter);
+        canMsg1.data[6] = highByte(stepper);
+        canMsg1.data[7] = lowByte(stepper);
         Serial.print(stepper);
         break;
     }
-    counter++;
-
-
   }
+  mcp2515.sendMessage(&canMsg1);
+  /*counter++;
   if (millis() - timer > 1000) {
     Serial.print("FPS:");
     Serial.print(counter);
     counter = 0;
     timer = millis();
-  }
-
+  }*/
   Serial.println();
+  //delay(10);
 }

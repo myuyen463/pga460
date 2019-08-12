@@ -1,3 +1,5 @@
+#include <mcp2515.h>
+
 // P1 and P2 threshold values
 
 //P1 threshold levels
@@ -106,6 +108,10 @@
 #define THRBW 0x10
 
 
+struct can_frame canMsg1;
+//struct can_frame canMsg2;
+MCP2515 mcp2515(53);
+
 byte ChecksumInput[50]; //checksum array to hold values
 byte SENSOR[46];  //SENSOR Bulk-write array write
 byte THBUFF[35]; //Threshold buffer array for P1 and P2
@@ -118,12 +124,13 @@ byte numObj = 1;
 //Change numSerial and modify serialPorts to indicate number of PGA460s in use
 //Up to 3 PGA460 can be used on Arduino Mega2560
 const int numSerial = 3;
-HardwareSerial serialPorts [numSerial] = {Serial1, Serial2, Serial3};
+HardwareSerial* serialPorts [numSerial] = {&Serial1, &Serial2, &Serial3};
 
 
 uint8_t counter = 0;
+int stepper = 0;
 unsigned long timer;
-double minDistLim = 0.25;
+double minDistLim = 0.28;
 double maxDistLim = 11.2;
 byte regAddr;
 
@@ -154,7 +161,7 @@ void initSerial() {
         Serial1.begin(19200, SERIAL_8N2);
         break;
       }*/
-    serialPorts[i].begin(19200, SERIAL_8N2);
+    serialPorts[i]->begin(19200, SERIAL_8N2);
   }
   delay(10);
 }
@@ -231,7 +238,7 @@ void initEEPROM()
         Serial3.write(SENSOR, sizeof(SENSOR));
         break;
       }*/
-    serialPorts[i].write(SENSOR, sizeof(SENSOR));
+    serialPorts[i]->write(SENSOR, sizeof(SENSOR));
   }
 
   delay(10);
@@ -301,7 +308,7 @@ void initThreshold()
         Serial3.write(THBUFF, sizeof(THBUFF));
         break;
       }*/
-    serialPorts[i].write(THBUFF, sizeof(THBUFF));
+    serialPorts[i]->write(THBUFF, sizeof(THBUFF));
   }
   delay(100);
 
@@ -343,7 +350,7 @@ void initTVG()
         Serial3.write(TVG, sizeof(TVG));
         break;
       }*/
-    serialPorts[i].write(TVG, sizeof(TVG));
+    serialPorts[i]->write(TVG, sizeof(TVG));
   }
 
   delay(100);
@@ -381,7 +388,7 @@ void initAFEGAIN()
         Serial3.write(AFEGAIN, sizeof(AFEGAIN));
         break;
       }*/
-    serialPorts[i].write(AFEGAIN, sizeof(AFEGAIN));
+    serialPorts[i]->write(AFEGAIN, sizeof(AFEGAIN));
   }
 
   delay(100);
@@ -399,7 +406,7 @@ void initAFEGAIN()
       P2BL - Preset 2 Burst + Listen command
 
    Returns: none
-------------------------------------------*/
+  ------------------------------------------*/
 void sensorEcho(byte cmd)
 {
   pga460SerialFlush();
@@ -416,7 +423,7 @@ void sensorEcho(byte cmd)
         Serial3.write(echo, sizeof(echo));
         break;
       }*/
-    serialPorts[i].write(echo, sizeof(echo));
+    serialPorts[i]->write(echo, sizeof(echo));
   }
   delay(10); // maximum record length is 65ms, so delay with margin
   return;
@@ -449,10 +456,10 @@ bool pullSensorMeas()
         Serial3.write(pullMeas, sizeof(pullMeas));
         break;
       }*/
-    serialPorts[i].write(pullMeas, sizeof(pullMeas));
+    serialPorts[i]->write(pullMeas, sizeof(pullMeas));
   }
   delay(2);
-  
+
   switch (numSerial) {
     case 1:
       for (int n = 0; n < (2 + (numObj * 4)); n++)
@@ -465,27 +472,27 @@ bool pullSensorMeas()
       for (int n = 0; n < (2 + (numObj * 4)); n++)
       {
         UMRData[n] = Serial1.read();
-        UMRData[n+6] = Serial2.read();
+        UMRData[n + 6] = Serial2.read();
         delay(1);
       }
-      
+
       break;
     case 3:
       for (int n = 0; n < (2 + (numObj * 4)); n++)
       {
         UMRData[n] = Serial1.read();
-        UMRData[n+6] = Serial2.read();
-        UMRData[n+12] = Serial3.read();
+        UMRData[n + 6] = Serial2.read();
+        UMRData[n + 12] = Serial3.read();
         delay(1);
       }
       break;
   }
 
-/*for (int n = 0; n < (2 + (numObj * 4)); n++)
-  {
-  Serial.print(UMRData[n]); Serial.print(" ");
-  }*/
-return true;
+  /*for (int n = 0; n < (2 + (numObj * 4)); n++)
+    {
+    Serial.print(UMRData[n]); Serial.print(" ");
+    }*/
+  return true;
 }
 
 /*---------------------printSensorMeas -----
@@ -606,14 +613,14 @@ void registerRead(byte addr)
       case 2:
         Serial3.write(readBUFF, sizeof(readBUFF));
         break;
-    }*/
-    serialPorts[i].write(readBUFF, sizeof(readBUFF));
+      }*/
+    serialPorts[i]->write(readBUFF, sizeof(readBUFF));
     delay(10);
     for (int n = 0; n < 3; n++)
     {
       if (n == 1)
       {
-        data = serialPorts[i].read(); // store read data
+        data = serialPorts[i]->read(); // store read data
         delay(1);
       }
     }
@@ -654,8 +661,8 @@ void pga460SerialFlush()
       case 2:
         Serial3.flush();
         break;
-    }*/
-    serialPorts[i].flush();
+      }*/
+    serialPorts[i]->flush();
   }
   return;
 }
@@ -849,6 +856,22 @@ void setup()
 
   Serial.println("\nInitialization done");
 
+  canMsg1.can_id  = 0x0F6;
+  canMsg1.can_dlc = 8;
+  canMsg1.data[0] = 0x00;
+  canMsg1.data[1] = 0x00;
+  canMsg1.data[2] = 0x00;
+  canMsg1.data[3] = 0x00;
+  canMsg1.data[4] = 0x00;
+  canMsg1.data[5] = 0x00;
+  canMsg1.data[6] = 0x00;
+  canMsg1.data[7] = 0x00;
+
+  SPI.begin();
+  mcp2515.reset();
+  mcp2515.setBitrate(CAN_500KBPS, MCP_8MHZ);
+  mcp2515.setNormalMode();
+
   timer = millis();
 
 }
@@ -860,12 +883,29 @@ void loop() {
 
   // -+-+-+-+-+-+-+-+-+-+- ISSUE PULLING DATA COMMAND -+-+-+-+-+-+-+-+-+-+-+-//
   pullSensorMeas();
-  
+
   // -+-+-+-+-+-+-+-+-+-+- ISSUE CALCULATING DISTANCE COMMAND -+-+-+-+-+-+-+-+-+-+-+-//
   for (uint8_t i = 0; i < numSerial; i++) {
-    double distance = printSensorMeas(i);
-    Serial.print(distance);
-    Serial.print("\t");
+    int distance = printSensorMeas(i) * 100;
+    Serial.print(distance / 100.0); Serial.print("\t");
+    switch (i) {
+      case 0:
+        canMsg1.data[0] = highByte(distance);
+        canMsg1.data[1] = lowByte(distance);
+
+        break;
+      case 1:
+        canMsg1.data[2] = highByte(distance);
+        canMsg1.data[3] = lowByte(distance);
+
+        break;
+      case 2:
+        canMsg1.data[4] = highByte(distance);
+        canMsg1.data[5] = lowByte(distance);
+
+        break;
+
+    }
   }
   /*counter++;
     if (millis() - timer > 1000) {
@@ -874,5 +914,11 @@ void loop() {
     counter = 0;
     timer = millis();
     }*/
+  stepper++;
+  canMsg1.data[6] = highByte(stepper);
+  canMsg1.data[7] = lowByte(stepper);
+  Serial.print(stepper);
+
+  mcp2515.sendMessage(&canMsg1);
   Serial.println();
 }
