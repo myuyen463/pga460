@@ -11612,7 +11612,7 @@ W = angled&lt;p&gt;
 <part name="VIN" library="SparkFun-Connectors" deviceset="CONN_02" device=""/>
 <part name="5V/GND" library="con-lsta" library_urn="urn:adsk.eagle:library:161" deviceset="FE05-2" device="" package3d_urn="urn:adsk.eagle:package:8170/1"/>
 <part name="POWER" library="SparkFun-Connectors" deviceset="CONN_02" device=""/>
-<part name="J1" library="SparkFun-Connectors" deviceset="CONN_07" device=""/>
+<part name="MCP2515" library="SparkFun-Connectors" deviceset="CONN_07" device=""/>
 </parts>
 <sheets>
 <sheet>
@@ -11928,7 +11928,7 @@ W = angled&lt;p&gt;
 <attribute name="VALUE" x="210.82" y="-141.986" size="1.778" layer="96" font="vector"/>
 <attribute name="NAME" x="210.82" y="-131.572" size="1.778" layer="95" font="vector"/>
 </instance>
-<instance part="J1" gate="J1" x="241.3" y="-208.28" smashed="yes">
+<instance part="MCP2515" gate="J1" x="241.3" y="-208.28" smashed="yes">
 <attribute name="VALUE" x="236.22" y="-218.186" size="1.778" layer="96" font="vector"/>
 <attribute name="NAME" x="236.22" y="-195.072" size="1.778" layer="95" font="vector"/>
 </instance>
@@ -12080,7 +12080,7 @@ W = angled&lt;p&gt;
 <segment>
 <wire x1="246.38" y1="-210.82" x2="251.46" y2="-210.82" width="0.1524" layer="91"/>
 <label x="251.46" y="-210.82" size="1.778" layer="95"/>
-<pinref part="J1" gate="J1" pin="2"/>
+<pinref part="MCP2515" gate="J1" pin="2"/>
 <junction x="246.38" y="-210.82"/>
 </segment>
 <segment>
@@ -12235,7 +12235,7 @@ W = angled&lt;p&gt;
 <segment>
 <wire x1="246.38" y1="-213.36" x2="251.46" y2="-213.36" width="0.1524" layer="91"/>
 <label x="251.46" y="-213.36" size="1.778" layer="95"/>
-<pinref part="J1" gate="J1" pin="1"/>
+<pinref part="MCP2515" gate="J1" pin="1"/>
 <junction x="246.38" y="-213.36"/>
 </segment>
 <segment>
@@ -12278,7 +12278,7 @@ W = angled&lt;p&gt;
 <segment>
 <wire x1="246.38" y1="-200.66" x2="251.46" y2="-200.66" width="0.1524" layer="91"/>
 <label x="251.46" y="-200.66" size="1.778" layer="95"/>
-<pinref part="J1" gate="J1" pin="6"/>
+<pinref part="MCP2515" gate="J1" pin="6"/>
 <junction x="246.38" y="-200.66"/>
 </segment>
 <segment>
@@ -12741,7 +12741,7 @@ W = angled&lt;p&gt;
 <segment>
 <wire x1="246.38" y1="-198.12" x2="251.46" y2="-198.12" width="0.1524" layer="91"/>
 <label x="251.46" y="-198.12" size="1.778" layer="95"/>
-<pinref part="J1" gate="J1" pin="7"/>
+<pinref part="MCP2515" gate="J1" pin="7"/>
 <junction x="246.38" y="-198.12"/>
 </segment>
 </net>
@@ -12749,7 +12749,7 @@ W = angled&lt;p&gt;
 <segment>
 <wire x1="246.38" y1="-203.2" x2="251.46" y2="-203.2" width="0.1524" layer="91"/>
 <label x="251.46" y="-203.2" size="1.778" layer="95"/>
-<pinref part="J1" gate="J1" pin="5"/>
+<pinref part="MCP2515" gate="J1" pin="5"/>
 <junction x="246.38" y="-203.2"/>
 </segment>
 <segment>
@@ -12762,7 +12762,7 @@ W = angled&lt;p&gt;
 <segment>
 <wire x1="246.38" y1="-205.74" x2="251.46" y2="-205.74" width="0.1524" layer="91"/>
 <label x="251.46" y="-205.74" size="1.778" layer="95"/>
-<pinref part="J1" gate="J1" pin="4"/>
+<pinref part="MCP2515" gate="J1" pin="4"/>
 <junction x="246.38" y="-205.74"/>
 </segment>
 <segment>
@@ -12775,7 +12775,7 @@ W = angled&lt;p&gt;
 <segment>
 <wire x1="246.38" y1="-208.28" x2="251.46" y2="-208.28" width="0.1524" layer="91"/>
 <label x="251.46" y="-208.28" size="1.778" layer="95"/>
-<pinref part="J1" gate="J1" pin="3"/>
+<pinref part="MCP2515" gate="J1" pin="3"/>
 <junction x="246.38" y="-208.28"/>
 </segment>
 <segment>
