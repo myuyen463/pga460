@@ -130,7 +130,7 @@ HardwareSerial* serialPorts [numSerial] = {&Serial1, &Serial2, &Serial3};
 uint8_t counter = 0;
 int stepper = 0;
 unsigned long timer;
-double minDistLim = 0.28;
+double minDistLim = 0.25;
 double maxDistLim = 11.2;
 byte regAddr;
 
@@ -147,20 +147,7 @@ byte regAddr;
   -----------------------------*/
 void initSerial() {
   for (uint8_t i = 0; i < numSerial; i++) {
-    /*switch (i) {
-      case 0:
-        Serial1.begin(19200, SERIAL_8N2);
-        break;
-      case 1:
-        Serial2.begin(19200, SERIAL_8N2);
-        break;
-      case 2:
-        Serial3.begin(19200, SERIAL_8N2);
-        break;
-      default:
-        Serial1.begin(19200, SERIAL_8N2);
-        break;
-      }*/
+
     serialPorts[i]->begin(19200, SERIAL_8N2);
   }
   delay(10);
@@ -227,17 +214,6 @@ void initEEPROM()
 
 
   for (uint8_t i = 0; i < numSerial; i++) {
-    /*switch (i) {
-      case 0:
-        Serial1.write(SENSOR, sizeof(SENSOR));
-        break;
-      case 1:
-        Serial2.write(SENSOR, sizeof(SENSOR));
-        break;
-      case 2:
-        Serial3.write(SENSOR, sizeof(SENSOR));
-        break;
-      }*/
     serialPorts[i]->write(SENSOR, sizeof(SENSOR));
   }
 
@@ -297,17 +273,6 @@ void initThreshold()
 
   Serial.println("Init threshold");
   for (uint8_t i = 0; i < numSerial; i++) {
-    /*switch (i) {
-      case 0:
-        Serial1.write(THBUFF, sizeof(THBUFF));
-        break;
-      case 1:
-        Serial2.write(THBUFF, sizeof(THBUFF));
-        break;
-      case 2:
-        Serial3.write(THBUFF, sizeof(THBUFF));
-        break;
-      }*/
     serialPorts[i]->write(THBUFF, sizeof(THBUFF));
   }
   delay(100);
@@ -339,17 +304,6 @@ void initTVG()
   TVG[9] = calcChecksum(TVGBW);
 
   for (uint8_t i = 0; i < numSerial; i++) {
-    /*switch (i) {
-      case 0:
-        Serial1.write(TVG, sizeof(TVG));
-        break;
-      case 1:
-        Serial2.write(TVG, sizeof(TVG));
-        break;
-      case 2:
-        Serial3.write(TVG, sizeof(TVG));
-        break;
-      }*/
     serialPorts[i]->write(TVG, sizeof(TVG));
   }
 
@@ -377,17 +331,6 @@ void initAFEGAIN()
   AFEGAIN[4] = calcChecksum(SRW);
 
   for (uint8_t i = 0; i < numSerial; i++) {
-    /*switch (i) {
-      case 0:
-        Serial1.write(AFEGAIN, sizeof(AFEGAIN));
-        break;
-      case 1:
-        Serial2.write(AFEGAIN, sizeof(AFEGAIN));
-        break;
-      case 2:
-        Serial3.write(AFEGAIN, sizeof(AFEGAIN));
-        break;
-      }*/
     serialPorts[i]->write(AFEGAIN, sizeof(AFEGAIN));
   }
 
@@ -412,20 +355,9 @@ void sensorEcho(byte cmd)
   pga460SerialFlush();
   byte echo[4] = {syncByte, cmd, numObj, calcChecksum(cmd)}; // prepare bufCmd with 0xFF placeholders
   for (uint8_t i = 0; i < numSerial; i++) {
-    /*switch (i) {
-      case 0:
-        Serial1.write(echo, sizeof(echo));
-        break;
-      case 1:
-        Serial2.write(echo, sizeof(echo));
-        break;
-      case 2:
-        Serial3.write(echo, sizeof(echo));
-        break;
-      }*/
     serialPorts[i]->write(echo, sizeof(echo));
   }
-  delay(10); // maximum record length is 65ms, so delay with margin
+  delay(20); // maximum record length is 65ms, so delay with margin
   return;
 }
 
@@ -445,17 +377,6 @@ bool pullSensorMeas()
   byte pullMeas[3] = { syncByte, UMR, calcChecksum(UMR) };
 
   for (uint8_t i = 0; i < numSerial; i++) {
-    /*switch (i) {
-      case 0:
-        Serial1.write(pullMeas, sizeof(pullMeas));
-        break;
-      case 1:
-        Serial2.write(pullMeas, sizeof(pullMeas));
-        break;
-      case 2:
-        Serial3.write(pullMeas, sizeof(pullMeas));
-        break;
-      }*/
     serialPorts[i]->write(pullMeas, sizeof(pullMeas));
   }
   delay(2);
@@ -603,17 +524,6 @@ void registerRead(byte addr)
 
   pga460SerialFlush();
   for (uint8_t i = 0; i < numSerial; i++) {
-    /*switch (i) {
-      case 0:
-        Serial1.write(readBUFF, sizeof(readBUFF));
-        break;
-      case 1:
-        Serial2.write(readBUFF, sizeof(readBUFF));
-        break;
-      case 2:
-        Serial3.write(readBUFF, sizeof(readBUFF));
-        break;
-      }*/
     serialPorts[i]->write(readBUFF, sizeof(readBUFF));
     delay(10);
     for (int n = 0; n < 3; n++)
@@ -624,7 +534,7 @@ void registerRead(byte addr)
         delay(1);
       }
     }
-    Serial.print(data);
+    Serial.print(data); Serial.print(" ");
   }
 
   return ;
@@ -651,17 +561,6 @@ void pga460SerialFlush()
 {
   delay(2);
   for (uint8_t i = 0; i < numSerial; i++) {
-    /*switch (i) {
-      case 0:
-        Serial1.flush();
-        break;
-      case 1:
-        Serial2.flush();
-        break;
-      case 2:
-        Serial3.flush();
-        break;
-      }*/
     serialPorts[i]->flush();
   }
   return;
@@ -902,7 +801,6 @@ void loop() {
       case 2:
         canMsg1.data[4] = highByte(distance);
         canMsg1.data[5] = lowByte(distance);
-
         break;
 
     }
@@ -913,11 +811,11 @@ void loop() {
     Serial.print(counter);
     counter = 0;
     timer = millis();
-    }*/
-  stepper++;
+    }
+  /*stepper++;
   canMsg1.data[6] = highByte(stepper);
   canMsg1.data[7] = lowByte(stepper);
-  Serial.print(stepper);
+  Serial.print(stepper);*/
 
   mcp2515.sendMessage(&canMsg1);
   Serial.println();

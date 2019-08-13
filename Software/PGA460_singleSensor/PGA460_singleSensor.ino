@@ -187,7 +187,7 @@ void initEEPROM()
   SENSOR[45] = calcChecksum(EEBW);
 
   Serial1.write(SENSOR, sizeof(SENSOR)); // serial transmit master data for bulk SENSOR
-  delay(10);
+  delay(15);
 
   return;
 
@@ -406,10 +406,10 @@ bool pullSensorMeas()
       delay(1);
     }
   }
-  /*for (int n = 0; n < (2 + (numObj * 4)); n++)
+  for (int n = 0; n < (2 + (numObj * 4)); n++)
     {
     Serial.print(UMRData[n]); Serial.print(" ");
-    }*/
+    }
   return true;
 }
 

@@ -69,7 +69,7 @@ String interruptString = "";  // a string to hold incoming data
 boolean stringComplete = false; // whether the string is complete
 
 // PGA460_USSC library class
-pga460 ussc(&Serial1);
+pga460 ussc(&Serial3);
 
 //pga460 usscArr[3] = {ussc, ussc1, ussc2];
 
