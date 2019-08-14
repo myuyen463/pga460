@@ -357,7 +357,7 @@ void sensorEcho(byte cmd)
   for (uint8_t i = 0; i < numSerial; i++) {
     serialPorts[i]->write(echo, sizeof(echo));
   }
-  delay(20); // maximum record length is 65ms, so delay with margin
+  delay(12); // maximum record length is 65ms, so delay with margin
   return;
 }
 
@@ -732,7 +732,7 @@ void setup()
   Serial.begin(19200);
   initSerial();
   initThreshold();
-  //initEEPROM();
+  initEEPROM();
   initAFEGAIN();
   initTVG();
 
