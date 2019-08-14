@@ -40,9 +40,9 @@
 // Configuration variables
 byte commMode = 0;            // Communication mode: 0=UART, 1=TCI, 2=OneWireUART
 byte fixedThr = 4;            // set P1 and P2 thresholds to 0=%25, 1=50%, or 2=75% of max; initial minDistLim (i.e. 20cm) ignore
-byte xdcr = 0;                // set PGA460 to recommended settings for 0=Murata MA58MF14-7N, 1=Murata MA40H1S-R
+byte xdcr = 2;                // set PGA460 to recommended settings for 0=Murata MA58MF14-7N, 1=Murata MA40H1S-R
 byte agrTVG = 2;              // set TVG's analog front end gain range to 0=32-64dB, 1=46-78dB, 2=52-84dB, or 3=58-90dB
-byte fixedTVG = 2;            // set fixed TVG level at 0=%25, 1=50%, or 1=75% of max
+byte fixedTVG = 1;            // set fixed TVG level at 0=%25, 1=50%, or 1=75% of max
 byte runDiag = 1;            // run system diagnostics and temp/noise level before looping burst+listen command
 byte edd = 1;                 // echo data dump of preset 1, 2, or neither
 byte burn = 1;                // trigger EE_CNTRL to burn and program user EEPROM memory
@@ -69,7 +69,7 @@ String interruptString = "";  // a string to hold incoming data
 boolean stringComplete = false; // whether the string is complete
 
 // PGA460_USSC library class
-pga460 ussc(&Serial3);
+pga460 ussc(&Serial1);
 
 //pga460 usscArr[3] = {ussc, ussc1, ussc2];
 
