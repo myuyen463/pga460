@@ -12112,6 +12112,9 @@ W = angled&lt;p&gt;
 <wire x1="294.64" y1="-71.12" x2="320.04" y2="-71.12" width="0.1524" layer="91"/>
 <wire x1="320.04" y1="-71.12" x2="320.04" y2="-68.58" width="0.1524" layer="91"/>
 <wire x1="320.04" y1="-68.58" x2="322.58" y2="-68.58" width="0.1524" layer="91"/>
+<junction x="294.64" y="-68.58"/>
+<junction x="294.64" y="-71.12"/>
+<junction x="322.58" y="-68.58"/>
 </segment>
 <segment>
 <pinref part="C18" gate="G$1" pin="1"/>
